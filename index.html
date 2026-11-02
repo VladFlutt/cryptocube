@@ -1,0 +1,1599 @@
+<title>Cryptocube: шесть кубиков</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Onest:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: wooden cube (map of faces) · simulated phone (the sandbox) · task card (what to do and why) */
+:root {
+  --bg: #e6ecea;          /* teal-grey velvet the cube sits on */
+  --surface: #fbfcfb;
+  --surface-2: #f1f4f2;
+  --line: #cdd6d3;
+  --wood: #dcbf98;        /* beech */
+  --wood-edge: #c9a676;
+  --burn: #2b1e14;        /* laser-burnt engraving */
+  --fg: #1d2523;
+  --muted: #5b6764;
+  --accent: #1f6a64;
+  --accent-soft: #d5e8e5;
+  --on-accent: #ffffff;
+  --ok: #2c7a47;
+  --ok-soft: #dcefe2;
+  --bad: #b0412c;
+  --bad-soft: #f6e0da;
+  --warn: #9a6a12;
+  --phone: #141a19;
+  --screen: #ffffff;
+  --font-display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --font-body: "Onest", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141c1c; --surface: #1c2626; --surface-2: #222e2e; --line: #33413f;
+  --wood: #b8946a; --wood-edge: #9c7a52; --burn: #2a1b10;
+  --fg: #e8eeec; --muted: #9aa8a5; --accent: #5fb5ac; --accent-soft: #1f3836; --on-accent: #0e1a19;
+  --ok: #6cc28b; --ok-soft: #1d3527; --bad: #e88a73; --bad-soft: #3a221c; --warn: #e0b45a;
+  --phone: #050707; --screen: #1a2222; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #141c1c; --surface: #1c2626; --surface-2: #222e2e; --line: #33413f;
+  --wood: #b8946a; --wood-edge: #9c7a52; --burn: #2a1b10;
+  --fg: #e8eeec; --muted: #9aa8a5; --accent: #5fb5ac; --accent-soft: #1f3836; --on-accent: #0e1a19;
+  --ok: #6cc28b; --ok-soft: #1d3527; --bad: #e88a73; --bad-soft: #3a221c; --warn: #e0b45a;
+  --phone: #050707; --screen: #1a2222; color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--font-mono); font-size: 0.86em; word-break: break-all; }
+.wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 20px; }
+
+header.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.brand h1 { font: 700 22px/1.2 var(--font-display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.brand .sub { color: var(--muted); }
+.meta { display: flex; gap: 10px; align-items: center; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 13px; font-variant-numeric: tabular-nums; }
+.pill.sandbox { border-color: var(--warn); color: var(--warn); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; font-size: 11px; }
+.switch { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); flex-wrap: wrap; }
+.tabbtn { border: 0; background: transparent; border-radius: 8px; padding: 6px 12px; font-size: 13px; color: var(--muted); }
+.tabbtn.on { background: var(--fg); color: var(--bg); font-weight: 600; }
+.tabbtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ghost { border: 1px solid var(--line); background: transparent; border-radius: 8px; padding: 6px 12px; font-size: 13px; }
+
+.layout { display: grid; gap: 20px; grid-template-columns: 260px minmax(0, 380px) minmax(0, 1fr); align-items: start; }
+@media (max-width: 1100px) { .layout { grid-template-columns: 240px minmax(0, 1fr); } .brief { grid-column: 1 / -1; } }
+@media (max-width: 720px) { .layout { grid-template-columns: minmax(0, 1fr); } .cubecol { order: 0; } .brief { order: 1; } .phonecol { order: 2; } }
+
+/* cube */
+.cubecol { display: grid; gap: 16px; }
+.scene { height: 210px; perspective: 700px; display: grid; place-items: center; }
+.cube { width: 140px; height: 140px; position: relative; transform-style: preserve-3d; transition: transform 0.9s cubic-bezier(.2,.7,.2,1); }
+@media (prefers-reduced-motion: reduce) { .cube { transition: none; } }
+.face { position: absolute; inset: 0; background: var(--wood); border: 1px solid var(--wood-edge); border-radius: 6px;
+  display: grid; place-items: center; align-content: center; gap: 6px; color: var(--burn); backface-visibility: hidden;
+  background-image: repeating-linear-gradient(100deg, transparent 0 7px, rgba(90,60,30,0.07) 7px 8px); }
+.face .n { width: 30px; height: 30px; border: 2px solid var(--burn); border-radius: 50%; display: grid; place-items: center; font: 700 15px var(--font-display); }
+.face .t { font: 600 13px var(--font-body); text-align: center; padding: 0 8px; }
+.face.lit { box-shadow: inset 0 0 0 3px var(--burn); }
+.face.lit .n { background: var(--burn); color: var(--wood); }
+.f1 { transform: translateZ(70px); } .f2 { transform: rotateY(90deg) translateZ(70px); } .f3 { transform: rotateY(180deg) translateZ(70px); }
+.f4 { transform: rotateY(-90deg) translateZ(70px); } .f5 { transform: rotateX(90deg) translateZ(70px); } .f6 { transform: rotateX(-90deg) translateZ(70px); }
+.facelist { display: grid; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.facelist button { width: 100%; text-align: left; display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; border: 1px solid transparent; background: transparent; }
+.facelist button:hover:not(:disabled) { background: var(--surface); }
+.facelist button.cur { background: var(--surface); border-color: var(--line); }
+.facelist button:disabled { opacity: 0.45; cursor: not-allowed; }
+.facelist .num { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--fg); display: grid; place-items: center; font: 600 12px var(--font-display); }
+.facelist .done .num { background: var(--fg); color: var(--bg); }
+.facelist .st { font-size: 12px; color: var(--muted); }
+
+/* phone */
+.phonecol { display: grid; justify-items: center; }
+.phone { width: 100%; max-width: 360px; background: var(--phone); border-radius: 36px; padding: 12px; box-shadow: 0 18px 40px rgba(0,0,0,0.18); }
+.screen { background: var(--screen); border-radius: 26px; height: 640px; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+.statusbar { display: flex; justify-content: space-between; padding: 10px 18px 4px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.appbar { padding: 6px 16px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.appbar h2 { font: 600 17px var(--font-body); margin: 0; }
+.body { flex: 1; overflow-y: auto; padding: 4px 16px 16px; display: grid; align-content: start; gap: 12px; min-height: 0; }
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); }
+.tabs button { background: none; border: 0; padding: 10px 4px 14px; font-size: 12px; color: var(--muted); position: relative; }
+.tabs button.on { color: var(--accent); font-weight: 600; }
+.tabs .dot { position: absolute; top: 6px; right: 28%; width: 8px; height: 8px; border-radius: 50%; background: var(--bad); }
+.watermark { position: absolute; inset: auto 0 64px; text-align: center; font: 700 11px var(--font-display); letter-spacing: 0.3em; color: var(--warn); opacity: 0.55; pointer-events: none; }
+
+.btn { border: 0; border-radius: 12px; padding: 12px 14px; background: var(--accent); color: var(--on-accent); font-weight: 600; width: 100%; }
+.btn.sec { background: var(--surface-2); color: var(--fg); border: 1px solid var(--line); }
+.btn.danger { background: var(--bad-soft); color: var(--bad); border: 1px solid var(--bad); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.row { display: flex; gap: 8px; } .row > * { flex: 1; min-width: 0; }
+.card { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--surface); display: grid; gap: 6px; }
+.muted { color: var(--muted); font-size: 13px; }
+.big { font: 700 26px var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.asset { display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.asset:last-child { border-bottom: 0; }
+.coin { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font: 700 11px var(--font-display); background: var(--accent-soft); color: var(--accent); }
+.coin.cube { background: var(--wood); color: var(--burn); }
+.num { font-variant-numeric: tabular-nums; }
+
+.app { display: grid; grid-template-columns: 48px 1fr auto; gap: 10px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); text-align: left; width: 100%; }
+.app .icon { width: 48px; height: 48px; border-radius: 12px; background: var(--wood); display: grid; place-items: center; color: var(--burn); font: 700 18px var(--font-display); }
+.ad { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--warn); border: 1px solid var(--warn); border-radius: 4px; padding: 0 4px; }
+
+.pinrow { display: flex; justify-content: center; gap: 12px; padding: 8px 0; }
+.pinrow span { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--fg); }
+.pinrow span.f { background: var(--fg); }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.keypad button { padding: 14px 0; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); font: 600 18px var(--font-body); }
+
+.seedgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; counter-reset: w; padding: 12px; border: 1px dashed var(--warn); border-radius: 12px; }
+.seedgrid div { font-family: var(--font-mono); font-size: 14px; }
+.seedgrid div::before { counter-increment: w; content: counter(w) ". "; color: var(--muted); display: inline-block; width: 2.2em; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-family: var(--font-mono); font-size: 13px; }
+.chip.sel { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.choice { text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--surface); width: 100%; }
+
+.qr { display: grid; grid-template-columns: repeat(21, 1fr); width: 168px; aspect-ratio: 1; max-width: 100%; margin: 0 auto; padding: 8px; background: #fff; border-radius: 8px; }
+.qr i { background: #fff; } .qr i.b { background: #111; }
+
+.msg { max-width: 86%; padding: 8px 12px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); }
+.msg.me { justify-self: end; background: var(--accent-soft); border-color: transparent; }
+.msg .who { font-size: 11px; font-weight: 600; color: var(--muted); }
+.msg.scam .who { color: var(--muted); }
+
+.tx { display: grid; gap: 2px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); text-align: left; width: 100%; }
+.status { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.status.pending { color: var(--warn); } .status.ok { color: var(--ok); }
+dl.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 13px; }
+dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; min-width: 0; }
+
+.block { border: 1px solid var(--line); border-radius: 12px; padding: 10px; display: grid; gap: 4px; background: var(--surface); }
+.block.broken { border-color: var(--bad); background: var(--bad-soft); }
+.block input { font: inherit; width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--screen); color: var(--fg); }
+.link { text-align: center; color: var(--muted); font-size: 18px; line-height: 1; }
+.link.broken { color: var(--bad); }
+
+.field { display: grid; gap: 4px; }
+.field label { font-size: 12px; color: var(--muted); }
+.field input, .restore input { font: inherit; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--screen); color: var(--fg); width: 100%; }
+.restore { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.restore input { font-family: var(--font-mono); font-size: 13px; padding: 8px; }
+.fees { display: grid; gap: 6px; }
+.fee { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--surface); }
+.fee.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+.trap { position: absolute; inset: 0; background: rgba(10,12,12,0.55); display: grid; align-items: end; padding: 12px; z-index: 5; }
+.trap .sheet { background: var(--screen); border-radius: 20px; padding: 16px; display: grid; gap: 10px; border-top: 4px solid var(--bad); }
+.trap .tag { font: 700 11px var(--font-display); letter-spacing: 0.12em; color: var(--bad); text-transform: uppercase; }
+.trap h3 { margin: 0; font-size: 17px; }
+
+/* brief */
+.brief { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px; display: grid; gap: 16px; min-width: 0; }
+.eyebrow { font: 600 11px var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.brief h2 { font: 700 20px/1.25 var(--font-display); margin: 4px 0 0; text-wrap: balance; }
+.brief p { margin: 0; max-width: 62ch; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.steps li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; }
+.steps .box { width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--muted); margin-top: 2px; display: grid; place-items: center; font-size: 13px; }
+.steps li.ok .box { background: var(--ok); border-color: var(--ok); color: #fff; }
+.steps li.ok span:last-child { color: var(--muted); }
+.explain { background: var(--accent-soft); border-radius: 12px; padding: 12px 14px; display: grid; gap: 6px; }
+.explain b { font-weight: 600; }
+.quiz { display: grid; gap: 14px; }
+.quiz fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 6px; }
+.quiz legend { font-weight: 600; margin-bottom: 4px; }
+.quiz .opt { text-align: left; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--surface-2); }
+.quiz .opt.right { border-color: var(--ok); background: var(--ok-soft); }
+.quiz .opt.wrong { border-color: var(--bad); background: var(--bad-soft); }
+.site { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.site .bar { background: var(--surface-2); padding: 6px 10px; font-family: var(--font-mono); font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--line); }
+.site .in { padding: 12px; display: grid; gap: 6px; }
+.paper { background: #fffdf6; color: #2a2a2a; border-radius: 4px; padding: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); transform: rotate(-0.6deg); }
+.paper .seedgrid { border: 0; padding: 0; }
+.paper .seedgrid div::before { color: #888; }
+.done-banner { border: 2px solid var(--ok); border-radius: 14px; padding: 14px; display: grid; gap: 8px; background: var(--ok-soft); }
+.final { display: grid; gap: 10px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.stats div { border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--surface-2); }
+.stats b { display: block; font: 700 20px var(--font-display); font-variant-numeric: tabular-nums; }
+.feed { display: grid; gap: 6px; font-size: 13px; }
+.feed div { display: grid; grid-template-columns: auto 1fr; gap: 8px; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1 id="h1">Кубик 1 · Первый кошелёк</h1>
+      <span class="sub">Cryptocube, учебная песочница</span>
+    </div>
+    <nav class="switch" id="switch" aria-label="Кубики"></nav>
+    <div class="meta">
+      <span class="pill sandbox" title="Все деньги, адреса и seed-фразы здесь ненастоящие">Учебная среда</span>
+      <span class="pill" id="xp">0 XP</span>
+      <button class="ghost" data-act="reset">Начать заново</button>
+    </div>
+  </header>
+  <main class="layout">
+    <section class="cubecol" aria-label="Грани кубика">
+      <div class="scene"><div class="cube" id="cube"></div></div>
+      <ol class="facelist" id="facelist"></ol>
+    </section>
+    <section class="phonecol" aria-label="Телефон-симулятор">
+      <div class="phone"><div class="screen" id="screen"></div></div>
+    </section>
+    <section class="brief" id="brief" aria-live="polite"></section>
+  </main>
+</div>
+
+<script>
+(() => {
+const WORDS = 'apple arrow badge beach blanket bridge cabin camera canal castle cherry clock cloud coast coral cotton cradle crystal desert dolphin dragon eagle echo engine fabric falcon feather fiber forest fossil galaxy garden giant ginger glacier globe harbor hazard hockey honey horizon island ivory jacket jungle kettle kingdom ladder lantern lemon liberty lizard lobster magnet marble meadow mirror monkey mountain museum napkin needle noodle ocean olive orbit oxygen paddle palace panda pepper piano pilot planet pocket pottery puzzle rabbit radar ribbon rocket saddle salmon scatter shadow silver sketch slogan spider spirit stadium sunset tackle timber tomato tornado tunnel turtle umbrella valley velvet violin volcano walnut wagon whisper window winter wizard yellow zebra'.split(' ');
+const MASHA = '0x9A4e1c07B3d25F8e6C1a0D47b92E5f3C8d6A1b20';
+const PETR = '0x5Fd27aC90e4B1d3386cE0f52A7b9D41e60c2F8a3';
+const TOKEN_REAL = '0xC0BE51e2a9D04f7B3c6E8a1D95f20B7c4E3d6A19';
+const TOKEN_FAKE = '0xC0BE51e2a9D04f7B3c6E8a1D95f20B7c4E3d6Al9';
+const SUPPORT = '@CubeWallet_Help_24';
+
+const FACES = [
+  { n: 1, short: 'Старт', title: 'Блокчейн: общая тетрадь, которую нельзя переписать',
+    goal: 'Попробуйте подделать старую запись в сети и посмотрите, что из этого выйдет. Потом ответьте на три вопроса.',
+    steps: [['f1-tamper', 'Изменить запись в блоке 2 (тетрадь на экране телефона)'], ['f1-quiz', 'Ответить на три вопроса']],
+    explain: 'Каждый блок хранит отпечаток (хэш) предыдущего. Изменили одну запись, и отпечаток блока поменялся, а следующий блок по-прежнему ссылается на старый. Тысячи участников хранят копии тетради и сверяют их, поэтому подделку видно сразу.' },
+  { n: 2, short: 'Кошелёк', title: 'Установите кошелёк и защитите его PIN-кодом',
+    goal: 'Найдите в магазине приложений настоящий кошелёк Cube Wallet и создайте новый кошелёк.',
+    steps: [['f2-app', 'Установить настоящее приложение'], ['f2-pin', 'Создать кошелёк и задать PIN']],
+    explain: 'Мошенники выкладывают копии популярных кошельков и покупают рекламу в поиске. Отличайте их по разработчику, числу установок и ссылке с официального сайта. PIN защищает только этот телефон, а доступ к деньгам даёт seed-фраза.' },
+  { n: 3, short: 'Seed-фраза', title: '12 слов, которые и есть ваш кошелёк',
+    goal: 'Запишите seed-фразу на бумагу, подтвердите её и выберите, где хранить.',
+    steps: [['f3-write', 'Записать фразу офлайн'], ['f3-confirm', 'Подтвердить три слова'], ['f3-store', 'Выбрать место хранения']],
+    explain: 'Кто знает эти 12 слов, тот владеет деньгами: с любого устройства, без PIN и без вашего ведома. Скриншот, заметки и облако синхронизируются и попадают к злоумышленникам. Бумага или металл в надёжном месте дома — правильный выбор.' },
+  { n: 4, short: 'Получение', title: 'Получите первый перевод и добавьте токен',
+    goal: 'Отправьте Маше свой адрес, получите от неё ETH и добавьте токен CUBE по адресу контракта с официального сайта.',
+    steps: [['f4-addr', 'Показать адрес Маше'], ['f4-recv', 'Получить 0,1 ETH'], ['f4-refuse', 'Ответить на просьбу Маши'], ['f4-token', 'Добавить настоящий токен CUBE']],
+    explain: 'Адрес можно показывать кому угодно: по нему только присылают деньги. Seed-фразу не просит никто, даже друзья и поддержка. Токен с тем же названием может выпустить кто угодно, поэтому сверяйте адрес контракта с официальным сайтом посимвольно.' },
+  { n: 5, short: 'Отправка', title: 'Отправьте перевод и найдите его в обозревателе',
+    goal: 'Верните Маше 0,05 ETH, выбрав разумную комиссию, затем найдите транзакцию в обозревателе.',
+    steps: [['f5-send', 'Отправить Маше 0,05 ETH'], ['f5-explorer', 'Открыть транзакцию в обозревателе'], ['f5-fee', 'Ответить, сколько стоил газ']],
+    explain: 'Комиссию (газ) получают валидаторы сети, а не кошелёк. В час пик она растёт, и срочность может стоить дороже самого перевода. Обозреватель показывает любую транзакцию: кто, кому, сколько, какая комиссия и в каком блоке.' },
+  { n: 6, short: 'Экзамен', title: 'Экзамен: «Телефон утонул»',
+    goal: 'Восстановите кошелёк на новом телефоне по seed-фразе и оплатите Петру заказ. Подсказок не будет.',
+    steps: [['f6-app', 'Поставить настоящий кошелёк на новый телефон'], ['f6-restore', 'Восстановить кошелёк по 12 словам'], ['f6-scam', 'Не попасться на «поддержку»'], ['f6-pay', 'Оплатить Петру 0,02 ETH']],
+    explain: 'Деньги хранятся не в телефоне, а в сети. Телефон — только ключница. Пока у вас есть seed-фраза, потеря устройства ничего не стоит.' },
+];
+
+const QUIZ = [
+  { q: 'Что произойдёт, если кто-то изменит старую запись в своей копии блокчейна?', a: ['Изменение разойдётся по всей сети', 'Сеть отвергнет его копию: отпечатки блоков не сойдутся', 'Запись удалится через сутки'], r: 1 },
+  { q: 'Кто хранит копии блокчейна?', a: ['Один банк', 'Компания, выпустившая монету', 'Тысячи независимых участников сети'], r: 2 },
+  { q: 'Что связывает блоки в цепочку?', a: ['Каждый блок хранит хэш предыдущего', 'Номер телефона владельца', 'Пароль администратора'], r: 0 },
+];
+
+const BLOCKS0 = ['Маша → Пётр: 2 ETH', 'Пётр → Инна: 0,5 ETH', 'Инна → Маша: 1 ETH', 'Маша → Аня: 0,3 ETH'];
+
+const hsh = s => { let x = 0x811c9dc5; for (let i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16).padStart(8, '0'); };
+const addrOf = seed => '0x' + [0, 1, 2, 3, 4].map(i => hsh(seed + '#' + i)).join('');
+const txHash = s => '0x' + [0, 1, 2, 3, 4, 5, 6, 7].map(i => hsh(s + i)).join('');
+const short = a => a.slice(0, 6) + '…' + a.slice(-4);
+const fmt = n => (Math.round(n * 1e6) / 1e6).toLocaleString('ru-RU', { maximumFractionDigits: 6 });
+const plural = (n, a, b, c) => { const m = n % 100, k = n % 10; return m > 10 && m < 20 ? c : k === 1 ? a : k > 1 && k < 5 ? b : c; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pick = (arr, k) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, k); };
+
+function fresh() {
+  return { face: 1, done: {}, st: {}, xp: 0, traps: 0, tab: 'home', view: null,
+    f1: { blocks: BLOCKS0.slice(), quiz: {} },
+    w: { app: false, pin: '', pin1: '', seed: [], written: false, confirm: null, confirmSel: {}, storage: null, addr: '' },
+    bal: { me: { ETH: 0, CUBE: 0 }, masha: { ETH: 1.2 }, petr: { ETH: 0.3 } },
+    tokens: ['ETH'], txs: [], chat: [], block: 19824510,
+    f4: { tokenSearch: false }, f5: { amount: '0.05', fee: 'normal', review: false, feeAns: null, lastTx: null },
+    f6: { stage: 'wiped', words: Array(12).fill(''), paper: false, scamFirst: Math.random() < 0.5, invoice: false, payTo: null },
+    trap: null, snap: null };
+}
+let S;
+try { S = JSON.parse(localStorage.getItem('cryptocube-1') || 'null'); } catch (e) { S = null; }
+if (!S || !S.f6) S = fresh();
+S.trap = null;
+const save = () => { try { localStorage.setItem('cryptocube-1', JSON.stringify(S)); } catch (e) {} };
+
+const stepDone = id => !!S.st[id];
+function mark(id) {
+  if (S.st[id]) return;
+  S.st[id] = true; S.xp += 50;
+  const f = FACES[S.face - 1];
+  if (f.steps.every(([k]) => S.st[k]) && !S.done[f.n]) { S.done[f.n] = true; S.xp += 100; }
+}
+function trap(title, text, restore) {
+  S.traps += 1;
+  S.trap = { title, text, restore: !!restore };
+}
+function say(who, text, extra) { S.chat.push(Object.assign({ who, text }, extra || {})); }
+
+const FEE = { slow: { label: 'Медленно', eta: '~10 мин', fee: 0.0016 }, normal: { label: 'Обычно', eta: '~30 сек', fee: 0.0042 }, fast: { label: 'Срочно', eta: '~12 сек', fee: 0.031 } };
+
+function sendTx(from, to, amount, fee, asset, note) {
+  const h = txHash(from + to + amount + Date.now() + Math.random());
+  const tx = { hash: h, from, to, amount, fee, asset: asset || 'ETH', status: 'pending', block: null, note: note || '' };
+  S.txs.unshift(tx);
+  const who = k => k === S.w.addr ? 'me' : k === MASHA ? 'masha' : k === PETR ? 'petr' : null;
+  const a = who(from), b = who(to);
+  if (a) S.bal[a][tx.asset] = (S.bal[a][tx.asset] || 0) - amount - (tx.asset === 'ETH' ? fee : 0);
+  if (a && tx.asset !== 'ETH') S.bal[a].ETH -= fee;
+  setTimeout(() => {
+    const t = S.txs.find(x => x.hash === h); if (!t) return;
+    t.status = 'ok'; S.block += 1 + Math.floor(Math.random() * 3); t.block = S.block;
+    if (b) S.bal[b][t.asset] = (S.bal[b][t.asset] || 0) + amount;
+    onConfirmed(t); render();
+  }, 2200);
+  return tx;
+}
+function onConfirmed(t) {
+  if (S.face === 4 && t.from === MASHA && t.to === S.w.addr) {
+    mark('f4-recv');
+    say('Маша', 'Отправила 0,1 ETH, проверь!');
+    setTimeout(() => { say('Маша', 'Слушай, а пришли мне свои 12 слов? Я гляну, правильно ли у тебя всё настроено 🙂', { choice: 'seedask' }); render(); }, 1400);
+  }
+  if (S.face === 4 && t.asset === 'CUBE') say('Cube Project', 'Начислили 100 учебных CUBE за регистрацию.');
+  if (t.from === S.w.addr && t.to === MASHA && S.face === 5) { mark('f5-send'); say('Маша', 'Пришло, спасибо!'); }
+  if (t.from === S.w.addr && t.to === PETR && S.face === 6) { S.chat.forEach(m => { if (m.choice === 'invoice') m.choice = null; }); mark('f6-pay'); say('Пётр', 'Оплата получена, заказ отправляю.'); }
+}
+
+/* ---------- actions ---------- */
+const A = {
+  reset() { S = fresh(); },
+  goface(n) { n = +n; if (n === 1 || S.done[n - 1]) { S.face = n; S.trap = null; S.view = null; enterFace(); } },
+  next() { if (S.face < 6) { S.face += 1; S.view = null; enterFace(); } },
+  closetrap() { const r = S.trap && S.trap.restore; S.trap = null; if (r && S.snap) { const keep = { xp: S.xp, traps: S.traps }; S = Object.assign(JSON.parse(S.snap), keep); S.snap = null; } },
+  tab(t) { S.tab = t; S.view = null; },
+  view(v) { S.view = v; },
+  quiz(arg) { const [i, j] = arg.split(':').map(Number); S.f1.quiz[i] = j; if (QUIZ.every((q, k) => S.f1.quiz[k] === q.r)) mark('f1-quiz'); },
+  tamper() { S.f1.blocks[1] = 'Пётр → Инна: 50 ETH'; mark('f1-tamper'); },
+  untamper() { S.f1.blocks = BLOCKS0.slice(); },
+  app(kind) {
+    if (kind === 'fake') { trap('Это поддельное приложение', 'Разработчик «Cube Wallett Inc» (две t), 1 тыс. установок и пометка «Реклама». Такие копии крадут seed-фразу при первом же вводе. Ставьте кошелёк только по ссылке с официального сайта.'); return; }
+    S.w.app = true;
+    if (S.face === 2) mark('f2-app');
+    if (S.face === 6) { mark('f6-app'); S.f6.stage = 'restore'; }
+  },
+  key(d) {
+    if (S.view === 'pinerr') S.view = null;
+    if (d === 'del') { if (S.w.pin1 && S.w.pin1.length === 6) S.w.pin = S.w.pin.slice(0, -1); else S.w.pin1 = S.w.pin1.slice(0, -1); return; }
+    if (!S.w.pin1 || S.w.pin1.length < 6) { S.w.pin1 = (S.w.pin1 || '') + d; return; }
+    S.w.pin += d;
+    if (S.w.pin.length === 6) {
+      if (S.w.pin !== S.w.pin1) { S.w.pin = ''; S.w.pin1 = ''; S.view = 'pinerr'; return; }
+      S.w.seed = pick(WORDS, 12); S.w.addr = addrOf(S.w.seed.join(' '));
+      mark('f2-pin'); S.view = null;
+    }
+  },
+  seedbad(kind) {
+    const t = kind === 'shot'
+      ? ['Скриншот попал в облачную галерею', 'Фото синхронизируются с облаком, их видят приложения с доступом к галерее. Вредоносные программы специально ищут на снимках 12 английских слов.']
+      : ['Облачная заметка — не хранилище для seed', 'Взломали почту или облако, и деньги ушли. Seed-фраза должна существовать только офлайн.'];
+    trap(t[0], t[1]);
+  },
+  written() {
+    S.w.written = true; mark('f3-write');
+    const idx = pick([...Array(12).keys()], 3).sort((a, b) => a - b);
+    S.w.confirm = idx.map(i => ({ i, opts: pick(pick(WORDS.filter(w => w !== S.w.seed[i]), 5).concat(S.w.seed[i]), 6) }));
+    S.w.confirmSel = {};
+  },
+  csel(arg) { const [k, w] = arg.split(':'); S.w.confirmSel[k] = w; },
+  confirm() {
+    const ok = S.w.confirm.every((c, k) => S.w.confirmSel[k] === S.w.seed[c.i]);
+    if (ok) mark('f3-confirm');
+    else { S.view = 'confirmerr'; S.w.confirmSel = {}; }
+  },
+  store(kind) {
+    if (kind === 'notes' || kind === 'photo') { trap(kind === 'notes' ? 'Заметки синхронизируются' : 'Галерея тоже синхронизируется', 'Всё, что лежит в телефоне, уходит в облако и в резервные копии. Seed-фраза должна существовать только на бумаге или металле.'); return; }
+    S.w.storage = kind; mark('f3-store');
+  },
+  sendaddr() { if (stepDone('f4-addr')) return; mark('f4-addr'); say('Вы', 'Мой адрес: ' + S.w.addr, { me: true }); S.tab = 'chat'; S.view = null; setTimeout(() => { sendTx(MASHA, S.w.addr, 0.1, 0.0009, 'ETH'); render(); }, 900); },
+  seedask(ans) {
+    if (ans === 'give') { trap('Друга взломали', 'Аккаунт Маши угнали, и писал мошенник. Получив 12 слов, он вывел бы всё за минуту. Seed-фразу не просит никто: ни друзья, ни поддержка, ни «проверка настроек».'); return; }
+    S.chat.forEach(m => { if (m.choice === 'seedask') m.choice = null; });
+    say('Вы', 'Нет, seed-фразу никому не отправляю.', { me: true });
+    say('Маша', 'Это была не я! Мой аккаунт угоняли, уже вернула. Молодец, что не прислал(а).');
+    mark('f4-refuse');
+  },
+  tokensearch() { S.view = 'token'; },
+  addtoken(kind) {
+    if (kind === 'fake') { trap('Это токен-подделка', 'Название и тикер совпадают, а адрес контракта — нет (в конце «l9» вместо «19»). Такой токен ничего не стоит, а сайт, где его «покупают», крадёт деньги.'); return; }
+    if (!S.tokens.includes('CUBE')) S.tokens.push('CUBE');
+    S.view = null; mark('f4-token');
+    sendTx(TOKEN_REAL, S.w.addr, 100, 0, 'CUBE');
+  },
+  sendform() { S.view = 'send'; S.f5.review = false; },
+  fee(k) { S.f5.fee = k; },
+  review() {
+    const amt = parseFloat(String(S.f5.amount).replace(',', '.'));
+    if (!(amt > 0)) { S.view = 'send'; S.f5.err = 'Введите сумму больше нуля'; return; }
+    if (amt + FEE[S.f5.fee].fee > S.bal.me.ETH + 1e-9) { S.f5.err = 'Не хватает ETH на сумму и комиссию'; return; }
+    S.f5.err = ''; S.f5.review = true;
+  },
+  confirmsend() {
+    const to = S.f5.to || MASHA;
+    const amt = parseFloat(String(S.f5.amount).replace(',', '.'));
+    const fee = FEE[S.f5.fee].fee;
+    if (S.f5.fee === 'fast') {
+      S.snap = JSON.stringify(Object.assign({}, S, { trap: null }));
+      sendTx(S.w.addr, to, amt, fee);
+      trap('Комиссия дороже половины перевода', 'Вы отдали ' + fmt(fee) + ' ETH валидаторам за перевод ' + fmt(amt) + ' ETH. Перевод другу не горит: «Обычно» дошло бы за полминуты за ' + fmt(FEE.normal.fee) + ' ETH. Отмотаем время, попробуйте ещё раз.', true);
+      return;
+    }
+    const tx = sendTx(S.w.addr, to, amt, fee);
+    S.f5.lastTx = tx.hash; S.view = null; S.f5.review = false; S.f5.to = null; S.tab = 'home';
+  },
+  opentx(h) { S.view = 'tx:' + h; if (S.face === 5 && h === S.f5.lastTx) mark('f5-explorer'); },
+  feeans(v) { S.f5.feeAns = v; const t = S.txs.find(x => x.hash === S.f5.lastTx); if (t && Math.abs(t.fee - +v) < 1e-9) mark('f5-fee'); },
+  newphone() { S.f6.stage = 'store'; S.w.app = false; },
+  paper() { S.f6.paper = true; },
+  restore() {
+    const ok = S.f6.words.map(w => w.trim().toLowerCase()).join(' ') === S.w.seed.join(' ');
+    if (!ok) { S.view = 'restoreerr'; return; }
+    mark('f6-restore'); S.f6.stage = 'home'; S.view = null;
+    const scam = () => say('Поддержка Cube Wallet', 'Здравствуйте! После восстановления ваш кошелёк помечен как подозрительный. Пройдите верификацию: отправьте 12 слов в этот чат в течение 30 минут.', { choice: 'scam', scam: true });
+    const inv = () => { say('Пётр', 'Счёт за заказ: 0,02 ETH. Адрес: ' + PETR, { choice: 'invoice' }); S.f6.invoice = true; };
+    if (S.f6.scamFirst) { scam(); inv(); } else { inv(); scam(); }
+  },
+  scam(ans) {
+    if (ans === 'give') { trap('Это мошенник', 'Настоящая поддержка не пишет первой и никогда не просит seed-фразу. Аккаунт ' + SUPPORT + ' создан вчера. Пожалуйтесь на него и не отвечайте.'); return; }
+    S.chat.forEach(m => { if (m.choice === 'scam') m.choice = null; });
+    say('Вы', 'Заблокировать и пожаловаться', { me: true }); mark('f6-scam');
+  },
+  invoice() { S.view = 'send'; S.f5.to = PETR; S.f5.amount = '0.02'; S.f5.fee = 'normal'; S.f5.review = false; S.tab = 'home'; },
+};
+
+function enterFace() {
+  S.tab = 'home';
+  if (S.face === 4 && !S.chat.length) say('Маша', 'Привет! Хочу скинуть тебе 0,1 ETH на первый кошелёк. Пришли адрес.');
+  if (S.face === 5 && !S.chat.some(m => m.f5)) say('Маша', 'Вернёшь 0,05 ETH, когда сможешь? Не срочно.', { f5: true });
+  if (S.face === 6 && S.f6.stage === 'wiped' && !stepDone('f6-app')) { S.w.app = false; }
+}
+
+/* ---------- render ---------- */
+const $ = id => document.getElementById(id);
+const ROT = { 1: 'rotateX(-14deg) rotateY(20deg)', 2: 'rotateX(-14deg) rotateY(-70deg)', 3: 'rotateX(-14deg) rotateY(-160deg)', 4: 'rotateX(-14deg) rotateY(110deg)', 5: 'rotateX(-80deg) rotateY(20deg)', 6: 'rotateX(76deg) rotateY(20deg)' };
+
+function renderCube() {
+  $('cube').style.transform = ROT[S.face];
+  $('cube').innerHTML = FACES.map(f => `<div class="face f${f.n} ${S.done[f.n] ? 'lit' : ''}"><span class="n">${f.n}</span><span class="t">${f.short}</span></div>`).join('');
+  $('facelist').innerHTML = FACES.map(f => {
+    const open = f.n === 1 || S.done[f.n - 1];
+    const st = S.done[f.n] ? 'пройдена' : f.n === S.face ? 'сейчас' : open ? 'открыта' : 'закрыта';
+    return `<li><button class="${S.done[f.n] ? 'done' : ''} ${f.n === S.face ? 'cur' : ''}" data-act="goface" data-arg="${f.n}" ${open ? '' : 'disabled'}><span class="num">${f.n}</span><span>${f.short}</span><span class="st">${st}</span></button></li>`;
+  }).join('');
+  $('xp').textContent = S.xp + ' XP';
+}
+
+const bar = (title, right) => `<div class="statusbar"><span>9:41</span><span>Песочница · Ethereum</span></div><div class="appbar"><h2>${title}</h2>${right || ''}</div>`;
+const tabs = () => {
+  const unread = S.chat.some(m => m.choice && !(m.choice === 'invoice' && stepDone('f6-pay')));
+  return `<nav class="tabs"><button class="${S.tab === 'home' ? 'on' : ''}" data-act="tab" data-arg="home">Кошелёк</button><button class="${S.tab === 'chat' ? 'on' : ''}" data-act="tab" data-arg="chat">Сообщения${unread && S.tab !== 'chat' ? '<span class="dot"></span>' : ''}</button><button class="${S.tab === 'explorer' ? 'on' : ''}" data-act="tab" data-arg="explorer">Обозреватель</button></nav>`;
+};
+
+function storeView() {
+  return bar('Магазин приложений') + `<div class="body">
+    <div class="field"><label for="storeq">Поиск</label><input id="storeq" value="cube wallet" readonly></div>
+    <button class="app" data-act="app" data-arg="fake"><span class="icon">C</span><span><b>Cube Wallet Pro</b> <span class="ad">Реклама</span><br><span class="muted">Cube Wallett Inc · ★ 4,9 · 1 тыс.+</span></span><span class="muted">Установить</span></button>
+    <button class="app" data-act="app" data-arg="real"><span class="icon">C</span><span><b>Cube Wallet</b><br><span class="muted">Cube Labs · ★ 4,6 · 1 млн+</span></span><span class="muted">Установить</span></button>
+    <p class="muted">Подсказка: на официальном сайте указан разработчик Cube Labs.</p></div>`;
+}
+
+function phoneHTML() {
+  const f = S.face;
+  if (f === 1) {
+    let prevOk = true;
+    const blocks = S.f1.blocks.map((d, i) => {
+      const orig = BLOCKS0[i];
+      const broken = i > 0 && S.f1.blocks.slice(0, i).some((x, k) => x !== BLOCKS0[k]);
+      const myHash = hsh(S.f1.blocks.slice(0, i + 1).join('|'));
+      const storedPrev = i === 0 ? '00000000' : hsh(BLOCKS0.slice(0, i).join('|'));
+      return `${i ? `<div class="link ${broken ? 'broken' : ''}">${broken ? '✕' : '↓'}</div>` : ''}<div class="block ${broken || d !== orig ? 'broken' : ''}">
+        <span class="muted">Блок ${S.block - 3 + i}</span>
+        ${i === 1 && d === orig ? `<span>${esc(d)}</span><button class="btn sec" data-act="tamper">Подделать: 0,5 → 50 ETH</button>` : `<span>${esc(d)}</span>`}
+        <span class="mono muted">ссылка на предыдущий: ${storedPrev}</span>
+        <span class="mono muted">хэш блока: ${myHash}</span></div>`;
+    }).join('');
+    const tampered = S.f1.blocks[1] !== BLOCKS0[1];
+    return bar('Тетрадь сети') + `<div class="body">${blocks}
+      ${tampered ? `<div class="card" style="border-color:var(--bad)"><b>1 248 узлов сверили копии</b><span class="muted">У блока 2 новый хэш, а блок 3 ссылается на старый. Ваша версия отвергнута, в сети осталась настоящая.</span><button class="btn sec" data-act="untamper">Вернуть как было</button></div>` : ''}</div>`;
+  }
+  if (f === 2) {
+    if (!S.w.app) return storeView();
+    if (stepDone('f2-pin')) return bar('Cube Wallet') + `<div class="body"><div class="card"><b>Кошелёк создан</b><span class="muted">Следующий шаг — seed-фраза. Перейдите к грани 3.</span></div></div>`;
+    const stage2 = S.w.pin1 && S.w.pin1.length === 6;
+    const cur = stage2 ? S.w.pin : (S.w.pin1 || '');
+    return bar('Cube Wallet') + `<div class="body">
+      <p>${stage2 ? 'Повторите PIN' : 'Придумайте PIN из 6 цифр'}</p>
+      ${S.view === 'pinerr' ? '<p class="muted" style="color:var(--bad)">PIN-коды не совпали, начните сначала.</p>' : ''}
+      <div class="pinrow">${[0, 1, 2, 3, 4, 5].map(i => `<span class="${i < cur.length ? 'f' : ''}"></span>`).join('')}</div>
+      <div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(d => `<button data-act="key" data-arg="${d}">${d}</button>`).join('')}<span></span><button data-act="key" data-arg="0">0</button><button data-act="key" data-arg="del" aria-label="Стереть">⌫</button></div></div>`;
+  }
+  if (f === 3) {
+    if (!S.w.written) return bar('Ваша seed-фраза') + `<div class="body">
+      <p class="muted">Запишите слова по порядку на бумагу. Никому не показывайте.</p>
+      <div class="seedgrid">${S.w.seed.map(w => `<div>${w}</div>`).join('')}</div>
+      <button class="btn" data-act="written">Я записал(а) на бумагу</button>
+      <div class="row"><button class="btn sec" data-act="seedbad" data-arg="shot">Сделать скриншот</button><button class="btn sec" data-act="seedbad" data-arg="cloud">Сохранить в облако</button></div>
+    </div><div class="watermark">УЧЕБНАЯ ФРАЗА</div>`;
+    if (!stepDone('f3-confirm')) return bar('Проверка') + `<div class="body">
+      ${S.view === 'confirmerr' ? '<p style="color:var(--bad)">Слова не совпали. Сверьтесь со своей записью.</p>' : '<p class="muted">Выберите слова по номерам. Подсмотреть экран нельзя: только ваша запись.</p>'}
+      ${S.w.confirm.map((c, k) => `<div class="field"><label>Слово № ${c.i + 1}</label><div class="chips">${c.opts.map(w => `<button class="chip ${S.w.confirmSel[k] === w ? 'sel' : ''}" data-act="csel" data-arg="${k}:${w}">${w}</button>`).join('')}</div></div>`).join('')}
+      <button class="btn" data-act="confirm" ${Object.keys(S.w.confirmSel).length < 3 ? 'disabled' : ''}>Подтвердить</button></div>`;
+    if (!stepDone('f3-store')) return bar('Где хранить запись?') + `<div class="body">
+      <button class="choice" data-act="store" data-arg="paper"><b>Бумага в надёжном месте дома</b><br><span class="muted">Можно сделать вторую копию в другом месте</span></button>
+      <button class="choice" data-act="store" data-arg="metal"><b>Металлическая пластина</b><br><span class="muted">Не боится воды и огня</span></button>
+      <button class="choice" data-act="store" data-arg="notes"><b>Заметки в телефоне</b><br><span class="muted">Всегда под рукой</span></button>
+      <button class="choice" data-act="store" data-arg="photo"><b>Фото записи в галерее</b><br><span class="muted">Не потеряется</span></button></div>`;
+    return bar('Cube Wallet') + `<div class="body"><div class="card"><b>Seed-фраза сохранена</b><span class="muted">Кошелёк готов к первому переводу. Переходите к грани 4.</span></div></div>`;
+  }
+  if (f === 6 && S.f6.stage === 'wiped') return `<div class="body" style="place-content:center;text-align:center;gap:16px;height:100%"><div class="big" aria-hidden="true">×</div><p><b>Телефон упал в реку.</b><br><span class="muted">Новый телефон уже распакован. Кошелька на нём нет.</span></p><button class="btn" data-act="newphone">Включить новый телефон</button></div>`;
+  if (f === 6 && S.f6.stage === 'store') return storeView();
+  if (f === 6 && S.f6.stage === 'restore') return bar('Cube Wallet') + `<div class="body">
+    <p>Восстановить существующий кошелёк</p>
+    ${S.view === 'restoreerr' ? '<p style="color:var(--bad)">Фраза не подходит. Проверьте порядок и написание слов.</p>' : '<p class="muted">Введите 12 слов из своей записи.</p>'}
+    <div class="restore">${S.f6.words.map((w, i) => `<input id="rw${i}" data-inp="rw" data-i="${i}" list="wl" value="${esc(w)}" placeholder="${i + 1}" autocomplete="off" autocapitalize="none" spellcheck="false">`).join('')}</div>
+    <datalist id="wl">${WORDS.map(w => `<option value="${w}">`).join('')}</datalist>
+    <button class="btn" data-act="restore">Восстановить</button></div>`;
+  return walletHTML();
+}
+
+function walletHTML() {
+  const me = S.bal.me;
+  let inner = '';
+  if (S.tab === 'chat') {
+    inner = bar('Сообщения') + `<div class="body">${S.chat.length ? S.chat.map(m => `<div class="msg ${m.me ? 'me' : ''} ${m.scam ? 'scam' : ''}">${m.me ? '' : `<div class="who">${esc(m.who)}</div>`}<div>${esc(m.text)}</div>
+      ${m.choice === 'seedask' ? `<div class="row" style="margin-top:8px"><button class="btn sec" data-act="seedask" data-arg="give">Отправить 12 слов</button><button class="btn" data-act="seedask" data-arg="no">Отказать</button></div>` : ''}
+      ${m.choice === 'scam' ? `<div class="row" style="margin-top:8px"><button class="btn sec" data-act="scam" data-arg="give">Пройти верификацию</button><button class="btn" data-act="scam" data-arg="block">Заблокировать</button></div>` : ''}
+      ${m.choice === 'invoice' && !stepDone('f6-pay') ? `<button class="btn" style="margin-top:8px" data-act="invoice">Оплатить счёт</button>` : ''}</div>`).join('') : '<p class="muted">Сообщений пока нет.</p>'}</div>`;
+  } else if (S.tab === 'explorer') {
+    if (S.view && S.view.startsWith('tx:')) {
+      const t = S.txs.find(x => x.hash === S.view.slice(3));
+      inner = bar('Транзакция', '<button class="ghost" data-act="view" data-arg="">Назад</button>') + `<div class="body"><div class="card"><span class="status ${t.status === 'ok' ? 'ok' : 'pending'}">${t.status === 'ok' ? 'Подтверждена' : 'В очереди'}</span>
+        <dl class="kv"><dt>Хэш</dt><dd class="mono">${t.hash}</dd><dt>Блок</dt><dd class="num">${t.block || '—'}</dd><dt>От</dt><dd class="mono">${label(t.from)}</dd><dt>Кому</dt><dd class="mono">${label(t.to)}</dd><dt>Сумма</dt><dd class="num">${fmt(t.amount)} ${t.asset}</dd><dt>Комиссия</dt><dd class="num">${fmt(t.fee)} ETH</dd></dl></div>
+        <p class="muted">Эти данные видит любой человек в мире. Блокчейн публичен.</p></div>`;
+    } else {
+      inner = bar('Обозреватель') + `<div class="body"><p class="muted">Последние транзакции с вашим адресом</p>${S.txs.length ? S.txs.map(t => `<button class="tx" data-act="opentx" data-arg="${t.hash}"><span class="status ${t.status === 'ok' ? 'ok' : 'pending'}">${t.status === 'ok' ? 'Блок ' + t.block : 'В очереди'}</span><span class="mono">${short(t.hash)}</span><span class="num">${t.to === S.w.addr ? '+' : '−'}${fmt(t.amount)} ${t.asset} · ${t.to === S.w.addr ? 'от ' + label(t.from) : 'кому ' + label(t.to)}</span></button>`).join('') : '<p class="muted">Пока пусто.</p>'}</div>`;
+    }
+  } else if (S.view === 'receive') {
+    inner = bar('Получить', '<button class="ghost" data-act="view" data-arg="">Назад</button>') + `<div class="body"><div class="qr" aria-label="Учебный QR-код адреса">${qr(S.w.addr)}</div>
+      <div class="card"><span class="muted">Ваш адрес в сети Ethereum</span><span class="mono">${S.w.addr}</span><button class="btn sec" data-act="copy">Скопировать</button></div>
+      ${S.face === 4 && !stepDone('f4-addr') ? '<button class="btn" data-act="sendaddr">Отправить адрес Маше</button>' : ''}</div>`;
+  } else if (S.view === 'token') {
+    inner = bar('Добавить токен', '<button class="ghost" data-act="view" data-arg="">Назад</button>') + `<div class="body"><div class="field"><label for="tq">Поиск</label><input id="tq" value="CUBE" readonly></div>
+      <button class="app" data-act="addtoken" data-arg="fake"><span class="icon">◆</span><span><b>CUBE</b> Cube Token<br><span class="mono muted">${TOKEN_FAKE}</span></span><span class="muted">+</span></button>
+      <button class="app" data-act="addtoken" data-arg="real"><span class="icon">◆</span><span><b>CUBE</b> Cube Token<br><span class="mono muted">${TOKEN_REAL}</span></span><span class="muted">+</span></button>
+      <p class="muted">Сверьте адрес контракта с официальным сайтом (справа или ниже).</p></div>`;
+  } else if (S.view === 'send') {
+    const to = S.f5.to || MASHA;
+    if (S.f5.review) {
+      const fee = FEE[S.f5.fee].fee, amt = parseFloat(String(S.f5.amount).replace(',', '.'));
+      inner = bar('Проверьте перевод', '<button class="ghost" data-act="sendform">Назад</button>') + `<div class="body"><div class="card"><dl class="kv"><dt>Кому</dt><dd class="mono">${label(to)}<br>${to}</dd><dt>Сумма</dt><dd class="num">${fmt(amt)} ETH</dd><dt>Комиссия</dt><dd class="num">${fmt(fee)} ETH · ${FEE[S.f5.fee].label}</dd><dt>Итого</dt><dd class="num"><b>${fmt(amt + fee)} ETH</b></dd></dl></div>
+        <p class="muted">Перевод в блокчейне нельзя отменить.</p><button class="btn" data-act="confirmsend">Подтвердить и отправить</button></div>`;
+    } else {
+      inner = bar('Отправить', '<button class="ghost" data-act="view" data-arg="">Назад</button>') + `<div class="body">
+        <div class="field"><label>Кому</label><div class="card"><b>${label(to)}</b><span class="mono muted">${to}</span></div></div>
+        <div class="field"><label for="amt">Сумма, ETH (доступно ${fmt(me.ETH)})</label><input id="amt" data-inp="amt" inputmode="decimal" value="${esc(S.f5.amount)}"></div>
+        <div class="field"><label>Комиссия сети ${S.face >= 5 ? '<span style="color:var(--warn)">· сейчас час пик</span>' : ''}</label><div class="fees">${Object.entries(FEE).map(([k, v]) => `<button class="fee ${S.f5.fee === k ? 'sel' : ''}" data-act="fee" data-arg="${k}"><b>${v.label}</b><span class="num">${fmt(v.fee)} ETH</span><span class="muted">${v.eta}</span></button>`).join('')}</div></div>
+        ${S.f5.err ? `<p style="color:var(--bad)">${S.f5.err}</p>` : ''}<button class="btn" data-act="review">Далее</button></div>`;
+    }
+  } else {
+    inner = bar('Cube Wallet', `<span class="mono muted">${short(S.w.addr)}</span>`) + `<div class="body">
+      <div><span class="muted">Баланс</span><div class="big">${fmt(me.ETH)} ETH</div></div>
+      <div class="row"><button class="btn" data-act="view" data-arg="receive">Получить</button><button class="btn" data-act="sendform" ${S.face < 5 ? 'disabled title="Откроется на грани 5"' : ''}>Отправить</button></div>
+      <div class="card">${S.tokens.map(t => `<div class="asset"><span class="coin ${t === 'CUBE' ? 'cube' : ''}">${t === 'CUBE' ? '◆' : 'Ξ'}</span><span><b>${t}</b><br><span class="muted">${t === 'CUBE' ? 'Cube Token' : 'Ethereum'}</span></span><span class="num">${fmt(me[t] || 0)}</span></div>`).join('')}</div>
+      ${S.face >= 4 ? '<button class="btn sec" data-act="tokensearch">Добавить токен</button>' : ''}
+      ${S.face === 6 && stepDone('f6-restore') ? '<p class="muted">Балансы на месте: они хранятся в сети, а не в телефоне.</p>' : ''}</div>`;
+  }
+  return inner + tabs();
+}
+const label = a => a === S.w.addr ? 'Вы' : a === MASHA ? 'Маша' : a === PETR ? 'Пётр' : a === TOKEN_REAL ? 'Контракт CUBE' : short(a);
+function qr(a) {
+  let bits = ''; for (let i = 0; i < 14; i++) bits += parseInt(hsh(a + i), 16).toString(2).padStart(32, '0');
+  let out = '';
+  for (let y = 0; y < 21; y++) for (let x = 0; x < 21; x++) {
+    const finder = (x < 7 && y < 7) || (x > 13 && y < 7) || (x < 7 && y > 13);
+    let b;
+    if (finder) { const fx = x > 13 ? x - 14 : x, fy = y > 13 ? y - 14 : y; b = fx === 0 || fx === 6 || fy === 0 || fy === 6 || (fx > 1 && fx < 5 && fy > 1 && fy < 5); }
+    else b = bits[y * 21 + x] === '1';
+    out += `<i class="${b ? 'b' : ''}"></i>`;
+  }
+  return out;
+}
+
+function trapHTML() {
+  if (!S.trap) return '';
+  return `<div class="trap" role="dialog" aria-modal="true" aria-labelledby="traph"><div class="sheet"><span class="tag">Учебная атака · ловушка сработала</span><h3 id="traph">${esc(S.trap.title)}</h3><p>${esc(S.trap.text)}</p><button class="btn" data-act="closetrap">${S.trap.restore ? 'Отмотать время и повторить' : 'Понятно, попробую иначе'}</button></div></div>`;
+}
+
+function briefHTML() {
+  const f = FACES[S.face - 1];
+  const allDone = FACES.every(x => S.done[x.n]);
+  let extra = '';
+  if (S.face === 1) extra = `<div class="quiz">${QUIZ.map((q, i) => `<fieldset><legend>${q.q}</legend>${q.a.map((a, j) => { const sel = S.f1.quiz[i] === j; return `<button class="opt ${sel ? (j === q.r ? 'right' : 'wrong') : ''}" data-act="quiz" data-arg="${i}:${j}">${a}</button>`; }).join('')}</fieldset>`).join('')}</div>`;
+  if (S.face === 4) extra = `<div class="site"><div class="bar">https://cube-labs.example · официальный сайт</div><div class="in"><b>Токен CUBE</b><span class="muted">Адрес контракта в сети Ethereum:</span><span class="mono">${TOKEN_REAL}</span></div></div>`;
+  if (S.face === 5 && stepDone('f5-explorer')) {
+    const opts = [FEE.slow.fee, FEE.normal.fee, FEE.fast.fee, 0.05];
+    extra = `<div class="quiz"><fieldset><legend>Сколько ETH вы заплатили за газ при переводе Маше?</legend>${opts.map(v => { const sel = S.f5.feeAns !== null && +S.f5.feeAns === v; const t = S.txs.find(x => x.hash === S.f5.lastTx); const right = t && Math.abs(t.fee - v) < 1e-9; return `<button class="opt ${sel ? (right ? 'right' : 'wrong') : ''}" data-act="feeans" data-arg="${v}">${fmt(v)} ETH</button>`; }).join('')}</fieldset></div>`;
+  }
+  if (S.face === 6 && S.f6.stage === 'restore') extra = S.f6.paper
+    ? `<div class="paper"><div class="muted" style="color:#777">Ваша запись с грани 3 (${S.w.storage === 'metal' ? 'металлическая пластина' : 'листок из ящика стола'})</div><div class="seedgrid">${S.w.seed.map(w => `<div>${w}</div>`).join('')}</div></div>`
+    : `<button class="btn sec" data-act="paper">Достать свою запись seed-фразы</button>`;
+  const fd = S.done[f.n];
+  const steps = `<ul class="steps">${f.steps.map(([k, t]) => `<li class="${S.st[k] ? 'ok' : ''}"><span class="box">${S.st[k] ? '✓' : ''}</span><span>${t}</span></li>`).join('')}</ul>`;
+  const explain = `<div class="explain"><b>Что здесь происходит</b><p>${f.explain}</p></div>`;
+  const nextBtn = fd && f.n < 6 ? `<div class="done-banner"><b>Грань ${f.n} пройдена, +100 XP</b><span>На кубике загорелась грань «${f.short}».</span><button class="btn" data-act="next">Перейти к грани ${f.n + 1}: ${FACES[f.n].short}</button></div>` : '';
+  const final = allDone ? `<div class="done-banner final"><b>Кубик 1 собран</b><p>Вы создали кошелёк, сохранили seed-фразу, получили и отправили переводы, нашли их в обозревателе и восстановили кошелёк на новом телефоне.</p>
+    <div class="stats"><div><b>${S.xp}</b>XP</div><div><b>${S.txs.length}</b>${plural(S.txs.length, 'транзакция', 'транзакции', 'транзакций')}</div><div><b>${S.traps}</b>${plural(S.traps, 'ловушка сработала', 'ловушки сработали', 'ловушек сработало')}</div></div>
+    <button class="btn" data-act="cube" data-arg="c2">Дальше: Кубик 2 «Безопасность»</button></div>` : '';
+  const feed = S.txs.length ? `<div><div class="eyebrow">Лента сети</div><div class="feed">${S.txs.slice(0, 4).map(t => `<div><span class="status ${t.status === 'ok' ? 'ok' : 'pending'}">${t.status === 'ok' ? 'блок ' + t.block : 'очередь'}</span><span>${label(t.from)} → ${label(t.to)}: ${fmt(t.amount)} ${t.asset}</span></div>`).join('')}</div></div>` : '';
+  return `<div><div class="eyebrow">Грань ${f.n} из 6${f.n === 6 ? ' · экзамен' : ''}</div><h2>${f.title}</h2></div><p>${f.goal}</p>${steps}${extra}${nextBtn}${final}${fd || f.n === 6 ? explain : ''}${feed}`;
+}
+
+function render1() {
+  renderCube();
+  const scr = $('screen');
+  const body = scr.querySelector('.body'); const top = body ? body.scrollTop : 0;
+  scr.innerHTML = phoneHTML() + trapHTML();
+  const nb = scr.querySelector('.body'); if (nb && !S.trap) nb.scrollTop = S.tab === 'chat' ? nb.scrollHeight : top;
+  $('brief').innerHTML = briefHTML();
+  save();
+}
+
+const DEMO2 = false;
+let CUR = 'c1';
+try { CUR = localStorage.getItem('cryptocube-cur') || 'c1'; } catch (e) {}
+/* ================= КУБИК 2: БЕЗОПАСНОСТЬ ================= */
+const POISON = '0x9A4e7F31d0B8c25aE94f6D0e3C71b8A25fe91b20';
+const DRAINER = '0xD4a1E57b0c5A9e3F1d26C8b4E07a1F9c3D5e8B40';
+const HW_ADDR = '0x3cB81f0aE5d97C24b6F0e1A8d3C59b72E40f6D11';
+const HW_FAKE = '0x3cB81f0aE5d97C24b6F0e1A8d3C59b72E40f6D1l'.replace('D1l', '9Ab');
+
+const FACES2 = [
+  { n: 1, short: 'Фишинг', title: 'Отличите поддельный сайт от настоящего',
+    goal: 'Разберитесь с тревожным письмом и найдите официальный сайт кошелька, не вводя seed-фразу нигде.',
+    steps: [['c2-report', 'Пожаловаться на фишинговое письмо'], ['c2-bookmark', 'Открыть официальный сайт и добавить его в закладки']],
+    explain: 'Фишинговые письма давят срочностью: «заблокирован», «24 часа», «подтвердите». Домены отличаются одной буквой (wa11et вместо wallet), а реклама в поиске покупается за минуту. Официальный сайт открывайте только из закладки.' },
+  { n: 2, short: 'Подмена', title: 'Подмена адреса: сверяйте адрес целиком',
+    goal: 'Отправьте Маше 0,01 ETH, взяв адрес из недавних получателей, и сохраните её в контакты.',
+    steps: [['c2-send', 'Отправить 0,01 ETH настоящей Маше'], ['c2-contact', 'Сохранить Машу в контакты']],
+    explain: 'Мошенник генерирует адрес с теми же первыми и последними символами и присылает вам нулевой перевод, чтобы адрес попал в историю. Кошелёк показывает адрес сокращённо, и подмену не видно. Берите адрес из контактов или сверяйте полностью.' },
+  { n: 3, short: 'Поддержка', title: 'Фейковая поддержка пишет первой',
+    goal: 'Задайте вопрос в официальном чате проекта и разберитесь с «поддержкой» в личных сообщениях.',
+    steps: [['c2-ask', 'Задать вопрос в официальном чате'], ['c2-block', 'Заблокировать фейковую поддержку']],
+    explain: 'Настоящие администраторы не пишут первыми в личку и не просят подключить кошелёк к «инструменту восстановления». Галочка рядом с именем в мессенджере ничего не гарантирует: это просто эмодзи в нике.' },
+  { n: 4, short: 'Подписи', title: 'Подпись может отдать все ваши токены',
+    goal: 'Заберите «аирдроп»: войдите на сайт безопасной подписью и разберитесь, что просит вторая подпись.',
+    steps: [['c2-signin', 'Подписать безопасный вход на сайт'], ['c2-reject', 'Отклонить опасную подпись']],
+    explain: 'Подпись — это не просто «вход». Сообщение Permit или setApprovalForAll разрешает чужому адресу тратить ваши токены без новых подтверждений. Читайте предпросмотр: кто получает право, на какой токен, на какую сумму и на какой срок.' },
+  { n: 5, short: 'Аппаратный', title: 'Переезд на аппаратный кошелёк',
+    goal: 'Купите и настройте аппаратный кошелёк, сверьте адрес на экране устройства и перенесите туда основные средства.',
+    steps: [['c2-buy', 'Выбрать безопасное устройство'], ['c2-verify', 'Поймать подмену адреса на компьютере'], ['c2-move', 'Перенести средства на устройство']],
+    explain: 'Ключи аппаратного кошелька не покидают устройство, а каждую транзакцию вы подтверждаете кнопкой на нём. Экран устройства — единственное место, которому можно верить: вирус на компьютере может подменить адрес в приложении, но не на устройстве.' },
+  { n: 6, short: 'Экзамен', title: 'Экзамен: «Поле с ловушками»',
+    goal: 'Десять ситуаций из одной недели. Часть из них безопасна. Не потеряйте ни одной монеты и не отвергните больше одного честного запроса.',
+    steps: [['c2-exam', 'Пройти 10 ситуаций без потерь']],
+    explain: 'Безопасность — это не «отказывать всегда», а проверять: откуда пришёл запрос, что именно он разрешает и можно ли подтвердить это другим каналом.' },
+];
+
+const EXAM = [
+  { t: 'Маша при встрече показывает свой адрес. Он совпадает с контактом «Маша». Она просит вернуть 0,01 ETH.', safe: true, a: 'Отправить', r: 'Отказать', why: 'Адрес подтверждён лично и совпадает с контактом.' },
+  { t: 'Письмо: «Вам начислено 500 USDC. Подключите кошелёк на cube-airdr0p.example в течение часа».', safe: false, a: 'Подключить', r: 'Игнорировать', why: 'Срочность, бесплатные деньги и домен с нулём вместо «o».' },
+  { t: 'DEX, открытый из закладки, просит подпись «Sign in with Ethereum»: ваш адрес, домен и случайный nonce.', safe: true, a: 'Подписать', r: 'Отклонить', why: 'Это вход, он ничего не разрешает тратить.' },
+  { t: 'Незнакомец в чате: «Я по ошибке отправил вам 50 USDT, верните, пожалуйста, на этот адрес». На балансе USDT нет.', safe: false, a: 'Вернуть', r: 'Игнорировать', why: 'Никакого перевода не было, это давление на совесть.' },
+  { t: 'Магазин приложений предлагает обновить Cube Wallet от разработчика Cube Labs.', safe: true, a: 'Обновить', r: 'Пропустить', why: 'Официальный разработчик, официальный магазин.' },
+  { t: 'Сайт с NFT просит подпись setApprovalForAll для всей вашей коллекции на неизвестный адрес.', safe: false, a: 'Подписать', r: 'Отклонить', why: 'Это право забрать все NFT без новых подтверждений.' },
+  { t: '«Поддержка биржи» в мессенджере просит код 2FA, чтобы «разблокировать вывод».', safe: false, a: 'Отправить код', r: 'Заблокировать', why: 'Коды 2FA не нужны никому, кроме вас.' },
+  { t: 'Аппаратный кошелёк показывает тот же адрес получателя и ту же сумму, что и приложение.', safe: true, a: 'Подтвердить', r: 'Отменить', why: 'Устройство подтвердило данные, им можно верить.' },
+  { t: 'В истории свежий перевод 0 USDC с адреса 0x9A4e…1b20, похожего на Машин. Нужно отправить Маше деньги.', safe: false, a: 'Взять адрес из истории', r: 'Взять из контактов', why: 'Нулевой перевод с похожего адреса — признак подмены.' },
+  { t: 'Друг предлагает сфотографировать вашу seed-фразу, «чтобы у него была запасная копия».', safe: false, a: 'Сфотографировать', r: 'Отказать', why: 'Фото seed-фразы — это копия ключей в чужом облаке.' },
+];
+
+function fresh2() {
+  return { face: 1, done: {}, st: {}, xp: 0, traps: 0, trap: null, snap: null, view: null, tab: 'chat',
+    bal: { ETH: 0.5, USDC: 200 }, hw: { ETH: 0, USDC: 0 }, sent: [],
+    f1: { page: 'inbox' }, f2: { open: {}, pick: null },
+    f3: { chat: 'list', asked: false, blocked: false },
+    f4: { connected: false, req: null, signed: false },
+    f5: { stage: 'buy', attempt: 0 },
+    f6: { order: pick([...Array(10).keys()], 10), i: 0, lost: 0, missed: 0, last: null, failed: false } };
+}
+let T;
+try { T = JSON.parse(localStorage.getItem('cryptocube-2') || 'null'); } catch (e) { T = null; }
+if (!T || !T.f6) T = fresh2();
+T.trap = null;
+const save2 = () => { try { localStorage.setItem('cryptocube-2', JSON.stringify(T)); } catch (e) {} };
+
+function mark2(id) {
+  if (T.st[id]) return;
+  T.st[id] = true; T.xp += 50;
+  const f = FACES2[T.face - 1];
+  if (f.steps.every(([k]) => T.st[k]) && !T.done[f.n]) { T.done[f.n] = true; T.xp += 100; }
+}
+function trap2(title, text, restore) { T.traps += 1; T.trap = { title, text, restore: !!restore }; }
+const snap2 = () => { T.snap = JSON.stringify(Object.assign({}, T, { trap: null, snap: null })); };
+
+const A2 = {
+  reset() { T = fresh2(); },
+  goface(n) { n = +n; if (n === 1 || T.done[n - 1] || DEMO2) { T.face = n; T.trap = null; T.view = null; } },
+  next() { if (T.face < 6) { T.face += 1; T.view = null; } },
+  closetrap() { const r = T.trap && T.trap.restore; T.trap = null; if (r && T.snap) { const keep = { xp: T.xp, traps: T.traps }; T = Object.assign(JSON.parse(T.snap), keep); T.snap = null; } },
+  view(v) { T.view = v || null; },
+  page(p) { T.f1.page = p; },
+  phish() { trap2('Вы ввели seed-фразу на поддельном сайте', 'Через минуту кошелёк опустел бы: фраза ушла на сервер мошенников. Ни один настоящий сервис не просит seed-фразу для «разблокировки» или «проверки».'); },
+  report() { mark2('c2-report'); T.f1.page = 'inbox'; },
+  bookmark() { mark2('c2-bookmark'); },
+  expand(k) { T.f2.open[k] = !T.f2.open[k]; },
+  pickto(k) { T.f2.pick = k; },
+  send2() {
+    if (!T.f2.pick) return;
+    if (T.f2.pick === 'poison') { snap2(); T.bal.ETH -= 0.0142; trap2('Деньги ушли мошеннику', 'Адрес из последнего «перевода» совпадал с Машиным только по краям: 0x9A4e…1b20. Середина другая. Отмотаем время: сверьте адрес целиком или возьмите из контактов.', true); return; }
+    T.bal.ETH -= 0.0142; T.sent.push('Маша · 0,01 ETH'); mark2('c2-send');
+  },
+  contact() { mark2('c2-contact'); },
+  chat(c) { T.f3.chat = c; },
+  ask() { T.f3.asked = true; mark2('c2-ask'); },
+  connectfake() { trap2('«Инструмент восстановления» — дрейнер', 'Сайт wallet-repair.example попросил бы подписать разрешение на все токены. Настоящая поддержка не пишет первой и никуда не просит подключаться.'); },
+  block() { T.f3.blocked = true; mark2('c2-block'); T.f3.chat = 'list'; },
+  connect() { T.f4.connected = true; T.f4.req = 'signin'; },
+  sign(kind) {
+    if (kind === 'signin') { T.f4.signed = true; T.f4.req = null; mark2('c2-signin'); return; }
+    snap2(); T.bal.USDC = 0; T.f4.req = null;
+    trap2('Дрейнер забрал все USDC', 'Подпись Permit разрешила адресу ' + DRAINER.slice(0, 10) + '… тратить ваши USDC без ограничений и бессрочно. Он сразу вывел 200 USDC. Отмотаем время: прочитайте предпросмотр и отклоните.', true);
+  },
+  reject(kind) { T.f4.req = null; if (kind === 'permit') mark2('c2-reject'); },
+  claim() { T.f4.req = 'permit'; },
+  buy(kind) {
+    if (kind === 'used') { trap2('Seed-фраза уже в коробке', 'Продавец сгенерировал фразу заранее и оставил себе копию. Всё, что вы переведёте на это устройство, он заберёт. Настоящее устройство всегда создаёт новую фразу при настройке.'); return; }
+    T.f5.stage = 'setup'; mark2('c2-buy');
+  },
+  hwseed() { T.f5.stage = 'move'; },
+  hwmatch(ans) {
+    const bad = T.f5.attempt === 0;
+    if (bad && ans === 'yes') { trap2('Вирус подменил адрес на компьютере', 'В приложении адрес отличался от того, что на экране устройства. Подтвердив его, вы отправили бы средства мошеннику. Верьте только экрану устройства.'); return; }
+    if (bad && ans === 'no') { T.f5.attempt = 1; mark2('c2-verify'); return; }
+    if (!bad && ans === 'no') { T.view = 'hwsame'; return; }
+    T.hw = { ETH: 0.45, USDC: T.bal.USDC }; T.bal.ETH = Math.max(0, T.bal.ETH - 0.4512); T.bal.USDC = 0; T.f5.stage = 'done'; mark2('c2-move');
+  },
+  exam(ans) {
+    const e = T.f6; const sc = EXAM[e.order[e.i]]; const acted = ans === 'act';
+    let res = 'ok';
+    if (acted && !sc.safe) { e.lost += 1; res = 'lost'; }
+    if (!acted && sc.safe) { e.missed += 1; res = 'missed'; }
+    e.last = { res, why: sc.why };
+    e.i += 1;
+    if (e.i >= 10) { if (e.lost === 0 && e.missed <= 1) mark2('c2-exam'); else e.failed = true; }
+  },
+  examretry() { T.f6 = fresh2().f6; },
+};
+
+function phone2() {
+  const f = T.face;
+  if (f === 1) {
+    const p = T.f1.page;
+    if (p === 'mail') return bar('Почта', '<button class="ghost" data-act="page" data-arg="inbox">Назад</button>') + `<div class="body">
+      <div class="card"><b>Ваш кошелёк заблокирован!</b><span class="mono muted">security@cube-wa11et.example</span>
+      <p>Мы обнаружили подозрительный вход. Если не подтвердите владение в течение 24 часов, средства будут заморожены.</p>
+      <button class="btn" data-act="page" data-arg="phish">Разблокировать кошелёк</button></div>
+      <button class="btn sec" data-act="report">Пожаловаться на фишинг</button></div>`;
+    if (p === 'phish' || p === 'ad') return bar('Браузер', '<button class="ghost" data-act="page" data-arg="inbox">Закрыть</button>') + `<div class="body">
+      <div class="site"><div class="bar">${p === 'ad' ? 'cubewallet-support.example' : 'cube-wa11et.example/unlock'}</div><div class="in">
+      <b>Cube Wallet · ${p === 'ad' ? 'Восстановление 24/7' : 'Разблокировка'}</b><span class="muted">Введите 12 слов вашей seed-фразы, чтобы подтвердить владение.</span>
+      <div class="restore">${[1, 2, 3, 4, 5, 6].map(i => `<input disabled placeholder="${i}">`).join('')}</div>
+      <button class="btn" data-act="phish">Ввести фразу</button></div></div></div>`;
+    if (p === 'search') return bar('Поиск', '<button class="ghost" data-act="page" data-arg="inbox">Назад</button>') + `<div class="body">
+      <div class="field"><input value="cube wallet официальный сайт" readonly aria-label="Запрос"></div>
+      <button class="app" data-act="page" data-arg="ad"><span class="icon">C</span><span><b>Cube Wallet — восстановление 24/7</b> <span class="ad">Реклама</span><br><span class="mono muted">cubewallet-support.example</span></span><span></span></button>
+      <button class="app" data-act="page" data-arg="real"><span class="icon">C</span><span><b>Cube Wallet от Cube Labs</b><br><span class="mono muted">cubewallet.example</span></span><span></span></button>
+      <p class="muted">Подсказка: адрес сайта указан на коробке кубика и в магазине приложений у разработчика Cube Labs.</p></div>`;
+    if (p === 'real') return bar('Браузер', '<button class="ghost" data-act="page" data-arg="inbox">Закрыть</button>') + `<div class="body">
+      <div class="site"><div class="bar">🔒 cubewallet.example</div><div class="in"><b>Cube Wallet</b><span class="muted">Мы никогда не просим seed-фразу и не блокируем кошельки: у нас нет к ним доступа.</span></div></div>
+      <button class="btn" data-act="bookmark" ${T.st['c2-bookmark'] ? 'disabled' : ''}>${T.st['c2-bookmark'] ? 'В закладках' : 'Добавить в закладки'}</button></div>`;
+    return bar('Почта') + `<div class="body">
+      <button class="tx" data-act="page" data-arg="mail" ${T.st['c2-report'] ? 'disabled' : ''}><span class="status pending">${T.st['c2-report'] ? 'В спаме' : 'Новое · срочно'}</span><b>Ваш кошелёк заблокирован!</b><span class="muted">security@cube-wa11et.example</span></button>
+      <button class="tx" disabled><span class="status ok">Прочитано</span><b>Маша: фото с выходных</b><span class="muted">masha@mail.example</span></button>
+      <button class="btn sec" data-act="page" data-arg="search">Найти официальный сайт в поиске</button></div>`;
+  }
+  if (f === 2) {
+    const item = (k, a, sub) => `<div class="card ${T.f2.pick === k ? 'sel' : ''}" style="${T.f2.pick === k ? 'border-color:var(--accent)' : ''}">
+      <button class="choice" style="border:0;padding:0;background:none" data-act="pickto" data-arg="${k}"><b>${short(a)}</b> <span class="muted">${sub}</span></button>
+      ${T.f2.open[k] ? `<span class="mono">${a}</span>` : ''}<button class="ghost" data-act="expand" data-arg="${k}">${T.f2.open[k] ? 'Скрыть' : 'Показать полностью'}</button></div>`;
+    if (T.st['c2-send']) return bar('Cube Wallet') + `<div class="body"><div class="card"><b>Отправлено Маше 0,01 ETH</b><span class="mono muted">${MASHA}</span></div>
+      <button class="btn" data-act="contact" ${T.st['c2-contact'] ? 'disabled' : ''}>${T.st['c2-contact'] ? 'Маша в контактах' : 'Сохранить адрес как «Маша»'}</button></div>`;
+    return bar('Отправить 0,01 ETH') + `<div class="body"><p class="muted">Недавние адреса</p>
+      ${item('poison', POISON, '· входящий 0 USDC, 2 мин назад')}${item('real', MASHA, '· вы отправляли 0,05 ETH, вчера')}
+      <button class="btn" data-act="send2" ${T.f2.pick ? '' : 'disabled'}>Отправить 0,01 ETH</button></div>`;
+  }
+  if (f === 3) {
+    const c = T.f3.chat;
+    if (c === 'group') return bar('Cube Wallet · чат', '<button class="ghost" data-act="chat" data-arg="list">Назад</button>') + `<div class="body">
+      <div class="msg"><div class="who">Админ Cube Labs</div><div>Напоминаем: администраторы никогда не пишут первыми в личные сообщения.</div></div>
+      ${T.f3.asked ? `<div class="msg me"><div>Перевод висит в очереди уже час, что делать?</div></div><div class="msg"><div class="who">Админ Cube Labs</div><div>Скорее всего, слишком низкая комиссия. Ускорьте перевод в самом кошельке. И не отвечайте тем, кто пишет вам в личку от нашего имени.</div></div>`
+        : `<button class="btn" data-act="ask">Спросить: «Перевод висит в очереди, что делать?»</button>`}</div>`;
+    if (c === 'dm') return bar('Cube Support ✔', '<button class="ghost" data-act="chat" data-arg="list">Назад</button>') + `<div class="body">
+      <div class="msg scam"><div class="who">Cube Support ✔ · аккаунт создан вчера</div><div>Здравствуйте! Видим, что у вас завис перевод. Подключите кошелёк к нашему инструменту восстановления: wallet-repair.example. Это займёт 2 минуты.</div></div>
+      <div class="row"><button class="btn sec" data-act="connectfake">Подключить кошелёк</button><button class="btn" data-act="block">Заблокировать</button></div></div>`;
+    return bar('Сообщения') + `<div class="body">
+      <button class="tx" data-act="chat" data-arg="group"><b>Cube Wallet · официальный чат</b><span class="muted">Ссылка с официального сайта · 48 тыс. участников</span></button>
+      ${T.f3.blocked ? '<p class="muted">Cube Support ✔ заблокирован.</p>' : `<button class="tx" data-act="chat" data-arg="dm"><span class="status pending">Новое сообщение</span><b>Cube Support ✔</b><span class="muted">Здравствуйте! Видим, что у вас завис…</span></button>`}</div>`;
+  }
+  if (f === 4) {
+    const r = T.f4.req;
+    const sheet = r === 'signin' ? `<div class="card" style="border-color:var(--accent)"><b>Запрос подписи · вход</b><dl class="kv"><dt>Сайт</dt><dd class="mono">cubedrop.example</dd><dt>Текст</dt><dd>Войти на cubedrop.example с адресом ${short(S.w.addr || MASHA)}. Nonce: 7f3a91</dd><dt>Разрешения</dt><dd>Нет</dd></dl>
+      <div class="row"><button class="btn sec" data-act="reject" data-arg="signin">Отклонить</button><button class="btn" data-act="sign" data-arg="signin">Подписать</button></div></div>`
+      : r === 'permit' ? `<div class="card" style="border-color:var(--bad)"><b>Запрос подписи · Permit</b><dl class="kv"><dt>Токен</dt><dd>USDC</dd><dt>Получатель права</dt><dd class="mono">${DRAINER}</dd><dt>Сумма</dt><dd style="color:var(--bad)">Без ограничений</dd><dt>Срок</dt><dd style="color:var(--bad)">Бессрочно</dd></dl>
+      <span class="muted">Сайт подписал кнопку как «Забрать 250 CUBE».</span>
+      <div class="row"><button class="btn sec" data-act="sign" data-arg="permit">Подписать</button><button class="btn" data-act="reject" data-arg="permit">Отклонить</button></div></div>` : '';
+    return bar('CubeDrop') + `<div class="body"><div class="site"><div class="bar">cubedrop.example</div><div class="in"><b>Заберите 250 CUBE бесплатно</b><span class="muted">Осталось 3 часа 12 минут</span>
+      ${!T.f4.connected ? '<button class="btn" data-act="connect">Подключить кошелёк</button>' : !T.f4.signed ? '<span class="muted">Кошелёк подключён. Сайт просит войти.</span><button class="btn" data-act="connect">Войти</button>' : T.st['c2-reject'] ? '<span>Вы отклонили подпись. Токены в безопасности.</span>' : '<button class="btn" data-act="claim">Забрать 250 CUBE</button>'}</div></div>
+      ${sheet}<div class="card"><div class="asset"><span class="coin">Ξ</span><span><b>ETH</b></span><span class="num">${fmt(T.bal.ETH)}</span></div><div class="asset"><span class="coin">$</span><span><b>USDC</b></span><span class="num">${fmt(T.bal.USDC)}</span></div></div></div>`;
+  }
+  if (f === 5) {
+    const st = T.f5.stage;
+    if (st === 'buy') return bar('Где купить устройство?') + `<div class="body">
+      <button class="choice" data-act="buy" data-arg="official"><b>Официальный магазин производителя</b><br><span class="muted">Новое, в заводской пломбе · 6 900 ₽</span></button>
+      <button class="choice" data-act="buy" data-arg="used"><b>С рук на сайте объявлений</b><br><span class="muted">«Уже настроено, seed-фраза на карточке в коробке» · 3 500 ₽</span></button></div>`;
+    if (st === 'setup') return bar('Настройка устройства') + `<div class="body"><div class="card" style="background:var(--phone);color:#e8eeec"><span class="mono">НОВАЯ ФРАЗА: 24 СЛОВА</span><span class="mono">1. timber 2. orbit 3. velvet …</span></div>
+      <p class="muted">Устройство само создало seed-фразу. Запишите её на карточку из комплекта.</p><button class="btn" data-act="hwseed">Записал(а) на карточку</button></div>`;
+    if (st === 'done') return bar('Аппаратный кошелёк') + `<div class="body"><div class="card"><b>Средства на устройстве</b><div class="asset"><span class="coin">Ξ</span><span>ETH</span><span class="num">${fmt(T.hw.ETH)}</span></div><div class="asset"><span class="coin">$</span><span>USDC</span><span class="num">${fmt(T.hw.USDC)}</span></div></div><p class="muted">На горячем кошельке осталось ${fmt(T.bal.ETH)} ETH на мелкие расходы.</p></div>`;
+    const appAddr = T.f5.attempt === 0 ? HW_FAKE : HW_ADDR;
+    return bar('Перенос на устройство') + `<div class="body">
+      <div class="card"><span class="muted">Приложение на компьютере: адрес устройства</span><span class="mono">${appAddr}</span></div>
+      <div class="card" style="background:var(--phone);color:#e8eeec"><span class="muted" style="color:#9aa8a5">Экран устройства</span><span class="mono">${HW_ADDR}</span></div>
+      ${T.view === 'hwsame' ? '<p class="muted">Сверьте ещё раз: теперь адреса одинаковые.</p>' : ''}
+      <p>Адреса совпадают?</p><div class="row"><button class="btn sec" data-act="hwmatch" data-arg="no">Нет, отменить</button><button class="btn" data-act="hwmatch" data-arg="yes">Да, подтвердить</button></div></div>`;
+  }
+  const e = T.f6;
+  if (T.st['c2-exam']) return bar('Неделя позади') + `<div class="body"><div class="card"><b>Ни одной потери</b><span class="muted">Пропущено честных запросов: ${e.missed}</span></div></div>`;
+  if (e.failed) return bar('Неделя позади') + `<div class="body"><div class="card" style="border-color:var(--bad)"><b>Экзамен не сдан</b><span>Потери: ${e.lost}. Отклонено честных запросов: ${e.missed}.</span><span class="muted">Нужно: 0 потерь и не больше 1 отклонённого честного запроса.</span></div><button class="btn" data-act="examretry">Пройти заново</button></div>`;
+  const sc = EXAM[e.order[e.i]];
+  return bar('Ситуация ' + (e.i + 1) + ' из 10') + `<div class="body">
+    ${e.last ? `<div class="card" style="border-color:${e.last.res === 'ok' ? 'var(--ok)' : 'var(--bad)'}"><b>${e.last.res === 'ok' ? 'Верно' : e.last.res === 'lost' ? 'Потеря средств' : 'Это был честный запрос'}</b><span class="muted">${e.last.why}</span></div>` : ''}
+    <div class="card"><p>${sc.t}</p></div>
+    <div class="row"><button class="btn sec" data-act="exam" data-arg="refuse">${sc.r}</button><button class="btn" data-act="exam" data-arg="act">${sc.a}</button></div></div>`;
+}
+
+function trap2HTML() {
+  if (!T.trap) return '';
+  return `<div class="trap" role="dialog" aria-modal="true" aria-labelledby="traph"><div class="sheet"><span class="tag">Учебная атака · ловушка сработала</span><h3 id="traph">${esc(T.trap.title)}</h3><p>${esc(T.trap.text)}</p><button class="btn" data-act="closetrap">${T.trap.restore ? 'Отмотать время и повторить' : 'Понятно, попробую иначе'}</button></div></div>`;
+}
+
+function brief2() {
+  const f = FACES2[T.face - 1];
+  const fd = T.done[f.n];
+  const all = FACES2.every(x => T.done[x.n]);
+  const steps = `<ul class="steps">${f.steps.map(([k, t]) => `<li class="${T.st[k] ? 'ok' : ''}"><span class="box">${T.st[k] ? '✓' : ''}</span><span>${t}</span></li>`).join('')}</ul>`;
+  let extra = '';
+  if (f.n === 6 && !T.st['c2-exam'] && !T.f6.failed) extra = `<div class="stats"><div><b>${T.f6.i}/10</b>пройдено</div><div><b>${T.f6.lost}</b>потерь</div><div><b>${T.f6.missed}</b>пропущено честных</div></div>`;
+  const nextBtn = fd && f.n < 6 ? `<div class="done-banner"><b>Грань ${f.n} пройдена, +100 XP</b><button class="btn" data-act="next">Перейти к грани ${f.n + 1}: ${FACES2[f.n].short}</button></div>` : '';
+  const final = all ? `<div class="done-banner final"><b>Кубик 2 собран</b><p>Вы распознали фишинг, подмену адреса, фейковую поддержку и опасную подпись и перенесли средства на аппаратный кошелёк.</p>
+    <div class="stats"><div><b>${T.xp}</b>XP</div><div><b>${T.traps}</b>${plural(T.traps, 'ловушка сработала', 'ловушки сработали', 'ловушек сработало')}</div></div>
+    <button class="btn" data-act="cube" data-arg="c3">Дальше: Кубик 3 «Биржи»</button></div>` : '';
+  return `<div><div class="eyebrow">Кубик 2 · грань ${f.n} из 6${f.n === 6 ? ' · экзамен' : ''}</div><h2>${f.title}</h2></div><p>${f.goal}</p>${steps}${extra}${nextBtn}${final}${fd || f.n === 6 ? `<div class="explain"><b>Что здесь происходит</b><p>${f.explain}</p></div>` : ''}`;
+}
+
+function render2() {
+  const c = $('cube');
+  c.style.transform = ROT[T.face];
+  c.innerHTML = FACES2.map(f => `<div class="face f${f.n} ${T.done[f.n] ? 'lit' : ''}"><span class="n">${f.n}</span><span class="t">${f.short}</span></div>`).join('');
+  $('facelist').innerHTML = FACES2.map(f => {
+    const open = f.n === 1 || T.done[f.n - 1] || DEMO2;
+    const st = T.done[f.n] ? 'пройдена' : f.n === T.face ? 'сейчас' : open ? 'открыта' : 'закрыта';
+    return `<li><button class="${T.done[f.n] ? 'done' : ''} ${f.n === T.face ? 'cur' : ''}" data-act="goface" data-arg="${f.n}" ${open ? '' : 'disabled'}><span class="num">${f.n}</span><span>${f.short}</span><span class="st">${st}</span></button></li>`;
+  }).join('');
+  const scr = $('screen');
+  scr.innerHTML = phone2() + trap2HTML();
+  $('brief').innerHTML = brief2();
+  save2();
+}
+
+/* ================= КУБИКИ 3–6: общий движок ================= */
+let U = null;            // состояние открытого кубика 3–6
+const CUBES = {};
+const barN = (title, right, net) => `<div class="statusbar"><span>9:41</span><span>Песочница · ${net}</span></div><div class="appbar"><h2>${title}</h2>${right || ''}</div>`;
+const ar = (sym, name, v, sub) => `<div class="asset"><span class="coin">${sym}</span><span><b>${name}</b>${sub ? `<br><span class="muted">${sub}</span>` : ''}</span><span class="num">${v}</span></div>`;
+const okCard = (t, s) => `<div class="card" style="border-color:var(--ok)"><b>${t}</b>${s ? `<span class="muted">${s}</span>` : ''}</div>`;
+const badCard = (t, s) => `<div class="card" style="border-color:var(--bad)"><b>${t}</b>${s ? `<span class="muted">${s}</span>` : ''}</div>`;
+const doneBtn = (id, t, td, act, arg) => `<button class="btn" data-act="${act}" ${arg ? `data-arg="${arg}"` : ''} ${U.st[id] ? 'disabled' : ''}>${U.st[id] ? td : t}</button>`;
+
+function regCube(c) {
+  let s; try { s = JSON.parse(localStorage.getItem('cryptocube-' + c.n) || 'null'); } catch (e) { s = null; }
+  if (!s || s.v !== c.fresh().v) s = c.fresh();
+  s.trap = null; c.S = s; CUBES[c.key] = c;
+}
+function baseState(v) { return { v, face: 1, done: {}, st: {}, xp: 0, traps: 0, trap: null, snap: null, view: null, q: {}, ql: {}, inp: {} }; }
+function mk(id) {
+  if (U.st[id]) return; U.st[id] = true; U.xp += 50;
+  CUBES[CUR].faces.forEach(f => { if (!U.done[f.n] && f.steps.every(([k]) => U.st[k])) { U.done[f.n] = true; U.xp += 100; } });
+}
+function tp(title, text, restore) { U.traps += 1; U.trap = { title, text, restore: !!restore }; }
+const sn = () => { U.snap = JSON.stringify(Object.assign({}, U, { trap: null, snap: null })); };
+
+const GA = {
+  reset() { U = CUBES[CUR].fresh(); },
+  goface(n) { n = +n; if (n === 1 || U.done[n - 1]) { U.face = n; U.trap = null; U.view = null; } },
+  next() { if (U.face < 6) { U.face += 1; U.view = null; } },
+  closetrap() { const r = U.trap && U.trap.restore; U.trap = null; if (r && U.snap) { const keep = { xp: U.xp, traps: U.traps, st: U.st, done: U.done }; U = Object.assign(JSON.parse(U.snap), keep); U.snap = null; } },
+  view(v) { U.view = v || null; },
+  qa(arg) {
+    const [qid, k] = arg.split(':'); const Q = CUBES[CUR].Q[qid]; const i = U.q[qid] || 0; const o = Q.stages[i].opts[+k];
+    if (!o.ok) { tp(Q.trapTitle || 'Ловушка сработала', o.why); return; }
+    U.q[qid] = i + 1; U.ql[qid] = o.why; if (i + 1 >= Q.stages.length) mk(Q.mark);
+  },
+};
+
+function questHTML(qid) {
+  const c = CUBES[CUR]; const Q = c.Q[qid]; const i = U.q[qid] || 0; const last = U.ql[qid];
+  const net = c.net(U.face);
+  if (i >= Q.stages.length) return barN(Q.title, '', net) + `<div class="body">${last ? okCard('Верно', last) : ''}<div class="done-banner"><b>${Q.doneT}</b><span>${Q.doneText}</span></div>${Q.after ? Q.after() : ''}</div>`;
+  const st = Q.stages[i];
+  return barN(`${Q.title} · ${i + 1} из ${Q.stages.length}`, '', net) + `<div class="body">${last && i ? okCard('Верно', last) : ''}
+    <div class="card"><p>${st.t}</p></div>${st.opts.map((o, k) => `<button class="choice" data-act="qa" data-arg="${qid}:${k}">${o.l}</button>`).join('')}</div>`;
+}
+function trapNHTML() {
+  if (!U.trap) return '';
+  return `<div class="trap" role="dialog" aria-modal="true" aria-labelledby="traph"><div class="sheet"><span class="tag">Учебная атака · ловушка сработала</span><h3 id="traph">${esc(U.trap.title)}</h3><p>${esc(U.trap.text)}</p><button class="btn" data-act="closetrap">${U.trap.restore ? 'Отмотать время и повторить' : 'Понятно, попробую иначе'}</button></div></div>`;
+}
+function briefN(c) {
+  const f = c.faces[U.face - 1]; const fd = U.done[f.n]; const all = c.faces.every(x => U.done[x.n]);
+  const steps = `<ul class="steps">${f.steps.map(([k, t]) => `<li class="${U.st[k] ? 'ok' : ''}"><span class="box">${U.st[k] ? '✓' : ''}</span><span>${t}</span></li>`).join('')}</ul>`;
+  const nextBtn = fd && f.n < 6 ? `<div class="done-banner"><b>Грань ${f.n} пройдена, +100 XP</b><button class="btn" data-act="next">Перейти к грани ${f.n + 1}: ${c.faces[f.n].short}</button></div>` : '';
+  const final = all ? `<div class="done-banner final"><b>Кубик ${c.n} собран</b><p>${c.final}</p>
+    <div class="stats"><div><b>${U.xp}</b>XP</div><div><b>${U.traps}</b>${plural(U.traps, 'ловушка сработала', 'ловушки сработали', 'ловушек сработало')}</div></div>
+    ${c.nextCube ? `<button class="btn" data-act="cube" data-arg="${c.nextCube[0]}">Дальше: Кубик ${c.nextCube[1]}</button>` : ''}</div>` : '';
+  const legal = f.legal ? `<p class="muted">${f.legal}</p>` : '';
+  return `<div><div class="eyebrow">Кубик ${c.n} · грань ${f.n} из 6${f.n === 6 ? ' · экзамен' : ''}</div><h2>${f.title}</h2></div><p>${f.goal}</p>${steps}${nextBtn}${final}${fd || f.n === 6 ? `<div class="explain"><b>Что здесь происходит</b><p>${f.explain}</p></div>` : ''}${legal}`;
+}
+function renderN(c) {
+  const cb = $('cube'); cb.style.transform = ROT[U.face];
+  cb.innerHTML = c.faces.map(f => `<div class="face f${f.n} ${U.done[f.n] ? 'lit' : ''}"><span class="n">${f.n}</span><span class="t">${f.short}</span></div>`).join('');
+  $('facelist').innerHTML = c.faces.map(f => {
+    const open = f.n === 1 || U.done[f.n - 1];
+    const st = U.done[f.n] ? 'пройдена' : f.n === U.face ? 'сейчас' : open ? 'открыта' : 'закрыта';
+    return `<li><button class="${U.done[f.n] ? 'done' : ''} ${f.n === U.face ? 'cur' : ''}" data-act="goface" data-arg="${f.n}" ${open ? '' : 'disabled'}><span class="num">${f.n}</span><span>${f.short}</span><span class="st">${st}</span></button></li>`;
+  }).join('');
+  $('screen').innerHTML = c.phone(U.face) + trapNHTML();
+  $('brief').innerHTML = briefN(c);
+  try { localStorage.setItem('cryptocube-' + c.n, JSON.stringify(U)); } catch (e) {}
+}
+
+/* ================= КУБИК 3: БИРЖИ ================= */
+const ASKS = [[3001, 0.05], [3012, 0.05], [3090, 0.1], [3400, 0.1], [3800, 0.2]];
+const BIDS = [[2998, 0.06], [2990, 0.08], [2950, 0.1], [2800, 0.2], [2600, 0.3]];
+const CUBEX_TON = 'UQBx7cUbE8xR2kTq3vFz4nWd9mS1aP6hJ3yL5oKe2GtNqfQc';
+const MEMO = '48213907';
+regCube({
+  key: 'c3', n: 3, name: 'Биржи', nextCube: ['c4', '4 «Мультичейн и приватность»'],
+  final: 'Вы завели аккаунт с 2FA, торговали лимитными ордерами, выводили в правильной сети, меняли на DEX с точным разрешением и защитой от сэндвича и вовремя ушли с падающей биржи.',
+  net: f => f <= 3 ? 'CubeX' : 'Ethereum',
+  faces: [
+    { n: 1, short: 'Аккаунт', title: 'Аккаунт на бирже: верификация и 2FA',
+      goal: 'Зарегистрируйтесь на учебной бирже CubeX, пройдите учебную верификацию и включите второй фактор входа.',
+      steps: [['c3-kyc', 'Пройти учебную верификацию (KYC)'], ['c3-2fa', 'Включить 2FA в приложении-аутентификаторе и сохранить резервные коды']],
+      explain: 'Централизованная биржа по закону обязана знать клиента (KYC), поэтому документы она запрашивает только в своём приложении. Тот, кто просит паспорт в мессенджере, собирает данные для кредитов и фейковых аккаунтов. SMS-коды уязвимы к перевыпуску SIM-карты, приложение-аутентификатор надёжнее.',
+      legal: 'В песочнице не загружаются настоящие документы: верификация проходит на карточке учебного персонажа.' },
+    { n: 2, short: 'Стакан', title: 'Стакан заявок и типы ордеров',
+      goal: 'Купите 0,3 ETH за учебные USDT так, чтобы не переплатить, и поставьте стоп-лосс.',
+      steps: [['c3-limit', 'Купить 0,3 ETH лимитным ордером'], ['c3-stop', 'Поставить стоп-лосс ниже цены покупки']],
+      explain: 'Стакан — это очередь заявок. Рыночный ордер забирает заявки подряд, и в тонком стакане средняя цена улетает вверх. Лимитный ордер исполняется только по вашей цене или лучше. Стоп-лосс на продажу ставят ниже текущей цены, иначе он сработает сразу.' },
+    { n: 3, short: 'Ввод и вывод', title: 'Ввод и вывод: сеть и memo',
+      goal: 'Выведите 300 USDT на свой кошелёк в сети Ethereum и внесите 10 TON на биржу.',
+      steps: [['c3-withdraw', 'Вывести USDT в правильной сети'], ['c3-memo', 'Внести TON с правильным memo']],
+      explain: 'Один и тот же токен живёт в разных сетях. Адрес 0x подходит к Ethereum и к BNB Chain, и биржа не заметит ошибки, но кошелёк в Ethereum таких денег не увидит. Для монет вроде TON, XRP и XLM биржа использует общий адрес, а ваш депозит находит по memo (тегу).' },
+    { n: 4, short: 'Первый DEX', title: 'Первый обмен на DEX',
+      goal: 'Обменяйте 100 USDC на настоящий токен CUBE в децентрализованной бирже CubeSwap.',
+      steps: [['c3-token', 'Найти настоящий CUBE по адресу контракта'], ['c3-approve', 'Дать разрешение ровно на сумму обмена'], ['c3-swap', 'Выполнить обмен']],
+      explain: 'Тикер может выпустить кто угодно, уникален только адрес контракта. Сверяйте его с официальным сайтом. Перед обменом DEX просит разрешение (approve) тратить ваш токен. Разрешение «без ограничений» удобно, но если роутер взломают, пропадёт весь баланс, а не одна сумма.' },
+    { n: 5, short: 'Проскальзывание', title: 'Проскальзывание и MEV',
+      goal: 'Обменяйте 0,5 ETH на USDC так, чтобы бот-сэндвичер не заработал на вас.',
+      steps: [['c3-slip', 'Обменять с допуском проскальзывания 0,5%'], ['c3-mev', 'Обменять через защищённую отправку (private RPC)']],
+      explain: 'Заявка висит в публичном мемпуле, пока её не включат в блок. Бот видит её, покупает перед вами и продаёт сразу после, забирая разницу в пределах вашего допуска. Маленький допуск делает атаку невыгодной, а приватная отправка прячет заявку от ботов.' },
+    { n: 6, short: 'Экзамен', title: 'Экзамен «Из биржи в DeFi»',
+      goal: 'По бирже CubeX ходят тревожные слухи. Выведите средства и разместите их безопасно, пройдя все шаги без ошибок.',
+      steps: [['c3-exam', 'Пройти сценарий «Из биржи в DeFi»']],
+      explain: 'Биржа хранит ваши монеты у себя, вы видите только запись в её базе. Когда биржа банкротится, клиенты становятся кредиторами в очереди. Правило «не ваши ключи — не ваши монеты»: на бирже держат только то, чем торгуют прямо сейчас.' },
+  ],
+  fresh: () => Object.assign(baseState(1), { ex: { USDT: 1000, ETH: 0 }, w: { ETH: 0.05, USDT: 0, USDC: 300, CUBE: 0 }, ton: 20,
+    f1: { tfa: null }, f2: { order: null }, f3: { stage: 'wd', err: null, memo: false }, f4: { tok: null, appr: null }, f5: { slip: null, prot: false, eth: 2, usdc: 0, last: null } }),
+  A: {
+    kyc() { mk('c3-kyc'); },
+    kycdm() { tp('Паспорт ушёл мошеннику', '«Менеджер» из мессенджера соберёт на ваше имя кредиты и аккаунты для отмывания денег. Биржа принимает документы только в своём приложении и никогда не пишет первой.'); },
+    tfa(a) { if (a === 'sms') { tp('SIM-swap: номер перевыпустили', 'Мошенник с поддельной доверенностью перевыпустил вашу SIM-карту и получил все SMS-коды. SMS лучше, чем ничего, но коды из приложения-аутентификатора не проходят через оператора.'); return; } U.f1.tfa = 'app'; },
+    codes() { mk('c3-2fa'); },
+    market() { sn(); U.ex.USDT -= 949.65; U.ex.ETH += 0.3; tp('Тонкий стакан: средняя цена 3 166', 'Рыночный ордер забрал заявки подряд: 0,05 по 3 001, 0,05 по 3 012, 0,1 по 3 090 и 0,1 по 3 400. Вы переплатили почти 5,5%. В тонком стакане покупайте лимитным ордером. Отмотаем время.', true); },
+    limit() { U.f2.order = 'open'; },
+    wait2() { U.f2.order = 'filled'; U.ex.USDT -= 900; U.ex.ETH += 0.3; mk('c3-limit'); },
+    stop(p) { if (p === '3050') { tp('Стоп выше рынка сработал сразу', 'Стоп-лосс на продажу ставят ниже текущей цены. Ордер по 3 050 при цене 3 000 исполнился мгновенно, и только что купленный ETH продан.'); return; } mk('c3-stop'); },
+    wnet(n) {
+      if (n === 'trc') { U.f3.err = 'Биржа отклонила заявку: адрес 0x… не подходит для сети TRON.'; return; }
+      if (n === 'bep') { sn(); U.ex.USDT -= 300; tp('USDT ушли в BNB Chain', 'Адрес 0x подходит к обеим сетям, поэтому биржа отправила. Но ваш кошелёк смотрит в Ethereum и денег не видит. Вернуть можно, только добавив сеть BNB Chain и купив BNB на комиссию, а в чужом кошельке — никак. Отмотаем время.', true); return; }
+      U.ex.USDT -= 300; U.w.USDT += 296; U.f3.err = null; U.f3.stage = 'ton'; mk('c3-withdraw');
+    },
+    memo() { U.f3.memo = !U.f3.memo; },
+    tonsend() {
+      if (!U.f3.memo) { sn(); U.ton -= 10; tp('Депозит без memo потерялся', 'Биржа принимает TON всех клиентов на один адрес и узнаёт ваш перевод по memo. Без него — заявка в поддержку и недели ожидания, а иногда и потеря. Отмотаем время.', true); return; }
+      U.ton -= 10; U.ex.TON = 10; U.f3.stage = 'done'; mk('c3-memo');
+    },
+    tok(t) { if (t === 'fake') { sn(); U.w.USDC -= 100; U.w.CUBE += 52000; tp('Купили токен-ловушку', 'Этот CUBE создан два часа назад, в пуле всего 310 $. Контракт разрешает покупку, но запрещает продажу (honeypot). Настоящий адрес контракта — на официальном сайте проекта и в списке токенов. Отмотаем время.', true); return; } U.f4.tok = 'real'; mk('c3-token'); },
+    appr(a) { if (a === 'max') { sn(); U.w.USDC = 0; tp('Бессрочное разрешение сработало против вас', 'Через месяц в роутере нашли уязвимость. Все, кто разрешил тратить USDC без ограничений, потеряли весь баланс, а не 100. Отмотаем время: разрешите ровно сумму обмена.', true); return; } U.f4.appr = 'exact'; mk('c3-approve'); },
+    swap4() { U.w.USDC -= 100; U.w.CUBE += 3310; mk('c3-swap'); },
+    slip(v) { U.f5.slip = v; },
+    prot() { U.f5.prot = !U.f5.prot; },
+    swap5() {
+      const s = U.f5; if (!s.slip || s.eth < 0.5) return;
+      if (s.slip === '15' || (s.slip === '3' && !s.prot)) {
+        sn(); const got = s.slip === '15' ? 1295 : 1457; s.eth -= 0.5; s.usdc += got;
+        tp('Сэндвич-атака', `Бот увидел заявку в мемпуле, купил ETH прямо перед вами и продал сразу после. С допуском ${s.slip}% вы получили ${got.toLocaleString('ru-RU')} USDC вместо 1 500. Отмотаем время.`, true); return;
+      }
+      s.eth -= 0.5; s.usdc += 1497;
+      s.last = s.prot ? 'Заявка ушла в блок напрямую, мимо публичного мемпула. Бот её не увидел.' : 'Бот видел заявку, но с допуском 0,5% атака ему невыгодна.';
+      if (s.slip === '0.5') mk('c3-slip'); if (s.prot) mk('c3-mev');
+    },
+  },
+  Q: { ex3: { title: 'Из биржи в DeFi', mark: 'c3-exam', trapTitle: 'Так можно потерять деньги',
+    doneT: 'Средства в безопасности', doneText: 'Через неделю CubeX объявила банкротство. Ваши деньги к этому моменту были на вашем кошельке.',
+    stages: [
+      { t: 'Новость: CubeX «временно» задерживает выводы из-за техработ. В чатах пишут о дыре в балансе. У вас на бирже 0,3 ETH и 700 USDT.', opts: [
+        { l: 'Подождать официального заявления', ok: false, why: 'Через два дня выводы заморозили, ещё через пять биржа подала на банкротство. Клиенты ждут выплат годами.' },
+        { l: 'Сразу вывести всё на свой кошелёк', ok: true, why: 'Пока выводы работают, лучше забрать средства и разобраться потом.' },
+        { l: 'Перевести всё в фьючерсы на той же бирже', ok: false, why: 'Деньги остались на той же бирже. При банкротстве всё равно, в каком разделе они лежали.' }] },
+      { t: 'Выводите USDT. Ваш кошелёк работает в сети Ethereum. Какую сеть выбрать?', opts: [
+        { l: 'BNB Chain: комиссия всего 0,3 USDT', ok: false, why: 'Кошелёк в Ethereum не увидит перевод в BNB Chain.' },
+        { l: 'Ethereum (ERC-20)', ok: true, why: 'Сеть вывода совпадает с сетью кошелька.' },
+        { l: 'TRON (TRC-20)', ok: false, why: 'Адрес 0x не подходит к TRON, вывод отклонят, а время уходит.' }] },
+      { t: 'На DEX меняете USDT на USDC. В поиске два USDC с одинаковым значком.', opts: [
+        { l: 'Тот, у которого адрес совпадает с официальным списком токенов', ok: true, why: 'Подлинность токена определяет адрес контракта, а не тикер и значок.' },
+        { l: 'Тот, где курс выгоднее на 4%', ok: false, why: 'Слишком выгодный курс у подделки — приманка. Продать её потом нельзя.' }] },
+      { t: 'CubeSwap просит разрешение тратить ваши USDT.', opts: [
+        { l: 'Без ограничений, чтобы не платить газ в следующий раз', ok: false, why: 'При взломе роутера пропадёт весь баланс USDT, а не сумма обмена.' },
+        { l: 'Ровно 700 USDT', ok: true, why: 'Точное разрешение ограничивает ущерб суммой обмена.' }] },
+      { t: 'Настройки обмена 700 USDT.', opts: [
+        { l: 'Допуск 15%, чтобы точно прошло', ok: false, why: 'Бот-сэндвичер заберёт почти весь допуск.' },
+        { l: 'Допуск 0,5% и защищённая отправка', ok: true, why: 'Боту нечего забрать, и он не видит заявку.' }] },
+    ] } },
+  phone(f) {
+    if (f === 1) {
+      if (!U.st['c3-kyc']) return barN('CubeX · верификация', '', 'CubeX') + `<div class="body">
+        <div class="card"><b>Учебная верификация</b><span class="muted">Настоящие биржи проверяют личность клиента (KYC). Здесь вместо паспорта — карточка учебного персонажа. Свои документы в песочницу не загружайте.</span>
+        <button class="btn" data-act="kyc">Загрузить карточку «Алекс Учебный»</button></div>
+        <div class="msg scam"><div class="who">Менеджер CubeX · мессенджер</div><div>Здравствуйте! Сейчас верификация идёт 3 дня. Пришлите фото паспорта и селфи мне, ускорю за 10 минут.</div></div>
+        <button class="btn sec" data-act="kycdm">Отправить паспорт менеджеру</button></div>`;
+      if (!U.f1.tfa) return barN('Защита аккаунта', '', 'CubeX') + `<div class="body">${okCard('Верификация пройдена', 'Теперь включите второй фактор входа.')}
+        <button class="choice" data-act="tfa" data-arg="sms"><b>SMS-коды</b><br><span class="muted">Код приходит на номер телефона</span></button>
+        <button class="choice" data-act="tfa" data-arg="app"><b>Приложение-аутентификатор</b><br><span class="muted">Код создаётся на телефоне без связи</span></button></div>`;
+      return barN('Аутентификатор', '', 'CubeX') + `<div class="body"><div class="card"><span class="muted">Ключ для приложения</span><span class="mono">JBSW Y3DP EHPK 3PXP</span></div>
+        <div class="card"><b>Резервные коды</b><span class="muted">Нужны, если потеряете телефон. Храните офлайн, отдельно от seed-фразы.</span><div class="seedgrid">${['48 213', '90 172', '33 815', '67 402', '15 988', '72 640'].map(x => `<div>${x}</div>`).join('')}</div></div>
+        ${doneBtn('c3-2fa', 'Записал(а) коды на бумагу', '2FA включена', 'codes')}</div>`;
+    }
+    if (f === 2) {
+      const o = U.f2.order;
+      const book = `<div class="card"><div class="row muted"><span>Цена, USDT</span><span style="text-align:right">Объём, ETH</span></div>
+        ${ASKS.slice().reverse().map(([p, v]) => `<div class="row num"><span style="color:var(--bad)">${p.toLocaleString('ru-RU')}</span><span style="text-align:right">${fmt(v)}</span></div>`).join('')}
+        <div class="row"><b class="num">3 000</b><span class="muted" style="text-align:right">последняя сделка</span></div>
+        ${BIDS.map(([p, v]) => `<div class="row num"><span style="color:var(--ok)">${p.toLocaleString('ru-RU')}</span><span style="text-align:right">${fmt(v)}</span></div>`).join('')}</div>`;
+      const bal = `<p class="muted num">На бирже: ${fmt(U.ex.USDT)} USDT · ${fmt(U.ex.ETH)} ETH</p>`;
+      if (!o) return barN('ETH / USDT', '', 'CubeX') + `<div class="body">${book}${bal}
+        <button class="btn sec" data-act="market">Купить 0,3 ETH по рынку</button><button class="btn" data-act="limit">Лимитный ордер: 0,3 ETH по 3 000</button></div>`;
+      if (o === 'open') return barN('ETH / USDT', '', 'CubeX') + `<div class="body">${book}<div class="card"><span class="status pending">Ордер открыт</span><b>Купить 0,3 ETH по 3 000 USDT</b><span class="muted">Исполнится, когда продавцы опустят цену до 3 000.</span></div>
+        <button class="btn" data-act="wait2">Подождать час</button></div>`;
+      return barN('ETH / USDT', '', 'CubeX') + `<div class="body">${okCard('Ордер исполнен', '0,3 ETH по 3 000 USDT, без переплаты')}${bal}
+        ${U.st['c3-stop'] ? okCard('Стоп-лосс по 2 700 стоит', 'Если цена упадёт на 10%, биржа продаст ETH автоматически.') : `<p>Поставьте стоп-лосс на продажу 0,3 ETH:</p>
+        <button class="choice" data-act="stop" data-arg="2700"><b>2 700 USDT</b> <span class="muted">на 10% ниже покупки</span></button>
+        <button class="choice" data-act="stop" data-arg="3050"><b>3 050 USDT</b> <span class="muted">выше текущей цены</span></button>`}</div>`;
+    }
+    if (f === 3) {
+      const s = U.f3;
+      if (s.stage === 'wd') return barN('Вывод USDT', '', 'CubeX') + `<div class="body">
+        <div class="field"><label>Адрес получателя (ваш кошелёк в сети Ethereum)</label><input class="mono" value="${MASHA.replace('9A4e', '7b21')}" readonly></div>
+        <div class="field"><label>Сумма</label><input value="300 USDT" readonly></div>
+        <p class="muted">Сеть вывода:</p>
+        <button class="fee" data-act="wnet" data-arg="erc"><b>Ethereum (ERC-20)</b><span class="num">4 USDT</span></button>
+        <button class="fee" data-act="wnet" data-arg="trc"><b>TRON (TRC-20)</b><span class="num">1 USDT</span></button>
+        <button class="fee" data-act="wnet" data-arg="bep"><b>BNB Chain (BEP-20)</b><span class="num">0,3 USDT</span></button>
+        ${s.err ? badCard(s.err) : ''}</div>`;
+      if (s.stage === 'ton') return barN('Депозит TON на CubeX', '', 'TON') + `<div class="body">${okCard('296 USDT пришли на ваш кошелёк')}
+        <div class="card"><span class="muted">Биржа: адрес для депозита TON</span><span class="mono">${CUBEX_TON}</span><span class="muted">Memo (обязательно)</span><b class="mono">${MEMO}</b></div>
+        <div class="card"><span class="muted">Ваш TON-кошелёк · ${fmt(U.ton)} TON</span><b>Отправить 10 TON</b>
+        <button class="ghost" data-act="memo">${s.memo ? '✓ Memo: ' + MEMO : 'Добавить memo'}</button></div>
+        <button class="btn" data-act="tonsend">Отправить 10 TON</button></div>`;
+      return barN('CubeX', '', 'CubeX') + `<div class="body">${okCard('Депозит зачислен', '10 TON на вашем счёте CubeX')}${ar('₮', 'USDT в кошельке', fmt(U.w.USDT))}</div>`;
+    }
+    if (f === 4) {
+      const s = U.f4;
+      const bal = `<div class="card">${ar('$', 'USDC', fmt(U.w.USDC))}${ar('CUBE', 'CUBE', fmt(U.w.CUBE))}</div>`;
+      if (!s.tok) return barN('CubeSwap', '', 'Ethereum') + `<div class="body"><div class="field"><input value="CUBE" readonly aria-label="Поиск токена"></div>
+        <button class="app" data-act="tok" data-arg="fake"><span class="icon">C</span><span><b>CUBE</b> <span class="ad">не проверен</span><br><span class="mono muted">${short(TOKEN_FAKE)}</span><br><span class="muted">ликвидность 310 $ · создан 2 ч назад</span></span><span></span></button>
+        <button class="app" data-act="tok" data-arg="real"><span class="icon">C</span><span><b>Cube Token · CUBE</b><br><span class="mono muted">${short(TOKEN_REAL)}</span><br><span class="muted">ликвидность 4,2 млн $ · в списке токенов</span></span><span></span></button>
+        <div class="card"><span class="muted">С официального сайта cube.example:</span><span class="mono">${TOKEN_REAL}</span></div></div>`;
+      if (!s.appr) return barN('Разрешение', '', 'Ethereum') + `<div class="body"><div class="card"><b>CubeSwap Router просит доступ к вашим USDC</b><span class="muted">Без разрешения контракт не сможет забрать USDC для обмена.</span></div>
+        <button class="choice" data-act="appr" data-arg="max"><b>Без ограничений</b><br><span class="muted">Больше не придётся платить газ за разрешение</span></button>
+        <button class="choice" data-act="appr" data-arg="exact"><b>Ровно 100 USDC</b><br><span class="muted">Только на этот обмен</span></button></div>`;
+      return barN('CubeSwap', '', 'Ethereum') + `<div class="body">${bal}
+        ${U.st['c3-swap'] ? okCard('Обмен выполнен', '100 USDC → 3 310 CUBE') : `<div class="card"><b>100 USDC → ≈ 3 310 CUBE</b><span class="muted">Разрешение: ровно 100 USDC</span></div><button class="btn" data-act="swap4">Обменять</button>`}</div>`;
+    }
+    if (f === 5) {
+      const s = U.f5;
+      return barN('CubeSwap · ETH → USDC', '', 'Ethereum') + `<div class="body"><div class="card">${ar('Ξ', 'ETH', fmt(s.eth))}${ar('$', 'USDC', fmt(s.usdc))}</div>
+        <div class="card"><b>Допуск проскальзывания</b><div class="chips">${['0.5', '3', '15'].map(v => `<button class="chip ${s.slip === v ? 'sel' : ''}" data-act="slip" data-arg="${v}">${v.replace('.', ',')}%</button>`).join('')}</div>
+        <button class="ghost" data-act="prot">${s.prot ? '✓ Защищённая отправка включена' : 'Включить защищённую отправку (private RPC)'}</button></div>
+        <div class="card"><span class="muted">Мемпул сейчас</span><span>В очереди 3 бота, отслеживающих крупные обмены</span></div>
+        ${s.last ? okCard('Обмен прошёл: 1 497 USDC', s.last) : ''}
+        <button class="btn" data-act="swap5" ${s.slip && s.eth >= 0.5 ? '' : 'disabled'}>Обменять 0,5 ETH</button></div>`;
+    }
+    return questHTML('ex3');
+  },
+});
+
+/* ================= КУБИК 4: МУЛЬТИЧЕЙН И ПРИВАТНОСТЬ ================= */
+const ADDR_BTC = 'bc1q9h7x4k2m8wz3u5d6f6n7c7j4e2r8t5y3p9s6aq';
+const ADDR_SOL = '7xKqP3mZ9wB2vN4cR8tY1uE6hL5dFaG3jS2oQ9iW4eX';
+const XMR_MAIN = '47tsKq2VbE9xUh5mR3cY8dNf1aW6jP4LzG7oT2sQ9kB5vH8eX3nM1yC6rD4uF5wA2';
+const XMR_SUB = '86HmcZ4tQ2wXb7Kd9sF3pR6nV1yJ8eL5aU2gT4cM9qB7zW3kN6hD1rE8vS5fY2xP';
+const ZEC_T = 't1Rv4exT7bqhYxB2kDnVgW5sPq3LmZ8cJ6a';
+const ZEC_U = 'u1q8w3e5r7t9y2u4i6o8p3a5s7d9f2g4h6j8k3l5z7x9c2v4b6n8m3q5w7e9r2';
+const FMTS = [[ADDR_BTC, 'BTC'], [MASHA, 'ETH'], [ADDR_SOL, 'SOL'], [CUBEX_TON, 'TON']];
+regCube({
+  key: 'c4', n: 4, name: 'Мультичейн и приватность', nextCube: ['c5', '5 «DeFi»'],
+  final: 'Вы платите газ во второй сети, выбираете надёжный мост и нативный токен, различаете форматы адресов, принимаете Monero на субадрес, экранируете Zcash и даёте бухгалтеру только ключ просмотра.',
+  net: f => ['Cube L2', 'Мост', 'Мультичейн', 'Monero', 'Zcash', 'Cube L2'][f - 1],
+  faces: [
+    { n: 1, short: 'L2 и газ', title: 'Вторые сети и газ',
+      goal: 'У вас 200 USDC в сети Cube L2. Отправьте Маше 50 USDC.',
+      steps: [['c4-gas', 'Получить ETH на газ в сети Cube L2'], ['c4-send', 'Отправить 50 USDC Маше']],
+      explain: 'В каждой сети комиссию платят её родной монетой. Во второй сети (L2) на Ethereum это ETH, но именно в этой сети. Токены без газа не сдвинуть. L2 собирает много переводов в пакет и публикует его в основной сети, поэтому перевод стоит центы, а не доллары.' },
+    { n: 2, short: 'Мосты', title: 'Мосты между сетями',
+      goal: 'Перенесите 300 USDC из Ethereum в Cube L2.',
+      steps: [['c4-bridge', 'Выбрать надёжный мост'], ['c4-native', 'Получить нативный USDC, а не обёртку']],
+      explain: 'Мост блокирует токены в одной сети и выпускает их представление в другой. В контракте моста копятся чужие деньги, и мосты — самая частая цель крупных взломов. Обёрнутый токен стоит столько, сколько надёжен выпустивший его мост. Если у сети есть нативный выпуск, берите его.' },
+    { n: 3, short: 'Не-EVM сети', title: 'Bitcoin, Solana, TON: другие адреса',
+      goal: 'Научитесь узнавать сеть по адресу и отправьте Петру 0,001 BTC.',
+      steps: [['c4-formats', 'Определить сеть для четырёх адресов'], ['c4-btc', 'Отправить BTC на адрес Bitcoin']],
+      explain: 'Сети вне семейства Ethereum используют свои форматы адресов: bc1… у Bitcoin, 32–44 символа base58 у Solana, UQ… или EQ… у TON. Адрес 0x на «BTC в сети BNB Chain» отправить можно, но это обёртка в чужой сети, и Bitcoin-кошелёк её не увидит.' },
+    { n: 4, short: 'Monero', title: 'Monero: субадреса и доказательство платежа',
+      goal: 'Примите 0,5 XMR от Ани, оплатите худи в магазине Cube Merch и докажите оплату.',
+      steps: [['c4-xmr-sub', 'Дать Ане новый субадрес'], ['c4-xmr-unlock', 'Дождаться разблокировки (10 блоков)'], ['c4-xmr-proof', 'Доказать платёж ключом транзакции']],
+      explain: 'В Monero скрыты отправитель, получатель и сумма. Seed-фраза — 25 слов. На каждого отправителя заводят субадрес: так никто не свяжет платежи друг с другом. Полученные монеты 10 блоков нельзя тратить. Чтобы доказать конкретный платёж, отдают ключ транзакции (tx key): он раскрывает только этот перевод.',
+      legal: 'Приватность — не способ уйти от закона. Ряд бирж исключил Monero из листинга, а в ЕС, по моим данным, с июля 2027 года регулируемым провайдерам запрещено работать с анонимными монетами.' },
+    { n: 5, short: 'Zcash', title: 'Zcash: экранированный пул и ключ просмотра',
+      goal: 'Экранируйте 3 ZEC, оплатите счёт дизайнеру с назначением платежа и дайте бухгалтеру Инне доступ на просмотр.',
+      steps: [['c4-zec-shield', 'Перевести ZEC в экранированный пул'], ['c4-zec-memo', 'Оплатить счёт с memo'], ['c4-zec-vk', 'Дать Инне ключ просмотра']],
+      explain: 'У Zcash два вида адресов: прозрачные t1… видны всем, как в Bitcoin, а экранированные скрывают сумму и участников. Единый адрес u1… сам выбирает экранированный пул. Memo — зашифрованное назначение платежа. Ключ просмотра (viewing key) показывает историю, но не даёт тратить: это выборочное раскрытие для бухгалтера или аудитора.',
+      legal: 'Ключ просмотра позволяет быть приватным для всех и прозрачным для налоговой, бухгалтера или банка по вашему выбору.' },
+    { n: 6, short: 'Экзамен', title: 'Экзамен «Зарплата фрилансера»',
+      goal: 'Получите оплату за проект в учебной стране Кубания, перенесите её между сетями и подготовьте отчётность.',
+      steps: [['c4-exam', 'Пройти сценарий «Зарплата фрилансера»']],
+      explain: 'Работа с несколькими сетями — это всегда три вопроса: какая сеть, какой токен, чем платить газ. Приватность законна, пока вы можете раскрыть данные тем, кому обязаны: бухгалтеру, банку, налоговой.',
+      legal: 'В РФ оплата товаров и услуг криптовалютой запрещена (259-ФЗ), поэтому сценарий разыгран в учебной юрисдикции. Доход в криптовалюте декларируется.' },
+  ],
+  fresh: () => Object.assign(baseState(1), { l2: { USDC: 200, ETH: 0 }, f1: { err: null },
+    f2: { bridge: null }, f3: { m: {}, btc: null, err: null }, f4: { stage: 'sub', conf: 0, bal: 0 },
+    f5: { t: 3, s: 0, stage: 'shield', memo: false } }),
+  A: {
+    send1() { if (U.l2.ETH <= 0) { U.f1.err = 'Недостаточно ETH для оплаты газа в сети Cube L2.'; return; } U.l2.USDC -= 50; U.l2.ETH -= 0.000004; mk('c4-send'); },
+    gas(k) { if (k === 'bot') { tp('Бот взял 20 USDC и пропал', '«Помощник с газом» из чата просит прислать USDC вперёд. Газ так никто и не прислал. Газ берут с биржи (вывод прямо в нужную сеть) или через мост.'); return; } U.l2.ETH += 0.01; U.f1.err = null; mk('c4-gas'); },
+    bridge(k) { if (k === 'mega') { sn(); tp('Мост взломали', 'Через сутки MegaBridge взломали, его mbUSDC подешевел до 0,18 $. Новый мост с бонусами — самый рискованный вариант: в нём копятся чужие деньги, а код не проверен временем. Отмотаем время.', true); return; } U.f2.bridge = k; mk('c4-bridge'); },
+    recv(k) { if (k === 'wrap') { tp('Обёртка потеряла привязку', 'bUSDC — расписка моста. Когда у моста проблемы, она торгуется с дисконтом, и выйти по 1 $ уже нельзя. Если у сети есть нативный USDC, берите его.'); return; } mk('c4-native'); },
+    fmt(arg) { const [i, n] = arg.split(':'); U.f3.m[i] = n; if (FMTS.every(([, net], k) => U.f3.m[k] === net)) mk('c4-formats'); },
+    btc(k) {
+      if (k === 'btcnet') { U.f3.err = 'Биржа отклонила вывод: 0x… — не адрес сети Bitcoin.'; return; }
+      if (k === 'bsc') { sn(); tp('Пётр получил BTCB в чужой сети', 'Биржа отправила обёрнутый BTC в BNB Chain на адрес 0x. Bitcoin-кошелёк Петра его не видит, а ключей от этого адреса в другой сети у него может и не быть. Отмотаем время.', true); return; }
+      if (k === 'ask') { U.f3.btc = 'asked'; U.f3.err = null; return; }
+      mk('c4-btc');
+    },
+    xsub(k) { if (k === 'main') { tp('Один адрес для всех', 'Основной адрес работает, но если раздавать его всем, отправители смогут понять, что платят одному человеку. На каждого отправителя заводят отдельный субадрес.'); return; } U.f4.stage = 'wait'; U.f4.bal = 0.5; mk('c4-xmr-sub'); },
+    xwait() { U.f4.conf = Math.min(10, U.f4.conf + 2); if (U.f4.conf >= 10) { U.f4.stage = 'pay'; mk('c4-xmr-unlock'); } },
+    xpay() { U.f4.bal -= 0.2001; U.f4.stage = 'proof'; },
+    xproof(k) {
+      if (k === 'spend') { tp('Магазин получил ключ траты', 'Секретный ключ траты даёт полный контроль над кошельком. «Магазин» или любой, кто увидит переписку, заберёт все XMR.'); return; }
+      if (k === 'seed') { tp('Seed-фраза ушла в чат поддержки', '25 слов — это весь кошелёк. Для доказательства платежа они не нужны.'); return; }
+      U.f4.stage = 'done'; mk('c4-xmr-proof');
+    },
+    zshield() { U.f5.s = 2.9999; U.f5.t = 0; U.f5.stage = 'send'; mk('c4-zec-shield'); },
+    zmemo() { U.f5.memo = !U.f5.memo; },
+    zsend() { if (!U.f5.memo) { tp('Платёж без назначения', 'Олег получает оплату от десятка клиентов. Без memo «Счёт №12» он не поймёт, кто заплатил, а у вас не будет записи для бухгалтерии. Memo в Zcash зашифрован и виден только получателю.'); return; } U.f5.s -= 1.0001; U.f5.stage = 'vk'; mk('c4-zec-memo'); },
+    zvk(k) { if (k !== 'vk') { tp(k === 'seed' ? 'Инна получила seed-фразу' : 'Инна получила ключ траты', 'Бухгалтеру нужно видеть операции, а не распоряжаться деньгами. С этим ключом Инна, или любой, кто взломает её почту, может потратить все ZEC. Для отчётности есть ключ просмотра.'); return; } U.f5.stage = 'done'; mk('c4-zec-vk'); },
+  },
+  Q: { ex4: { title: 'Зарплата фрилансера', mark: 'c4-exam', trapTitle: 'Ошибка стоила бы денег',
+    doneT: 'Гонорар получен и учтён', doneText: 'Оплата в нужной сети, газ есть, перевод в основную сеть надёжным мостом, а бухгалтер видит всё через ключ просмотра.',
+    stages: [
+      { t: 'Клиент готов заплатить 500 USDC и спрашивает, куда. Он платит в сети Cube L2.', opts: [
+        { l: 'Скинуть адрес 0x, он разберётся', ok: false, why: 'Клиент отправил в BNB Chain, потому что там дешевле. Теперь деньги в сети, которую ваш кошелёк не видит.' },
+        { l: 'Дать адрес 0x и написать явно: сеть Cube L2, токен USDC', ok: true, why: 'Адрес, сеть и токен — три вещи, которые надо назвать всегда.' },
+        { l: 'Дать адрес Monero, так приватнее', ok: false, why: 'USDC в сети Cube L2 нельзя отправить на адрес Monero.' }] },
+      { t: 'Пришло 500 USDC, но ETH для газа в Cube L2 нет.', opts: [
+        { l: 'Вывести немного ETH с биржи прямо в сеть Cube L2', ok: true, why: 'Биржи выводят ETH сразу во вторые сети, без моста.' },
+        { l: 'Спросить в чате, кто пришлёт газ за USDC', ok: false, why: 'В личку сразу напишет «помощник», возьмёт USDC и пропадёт.' }] },
+      { t: 'Часть гонорара нужна в основной сети Ethereum.', opts: [
+        { l: 'Новый мост: 0% комиссии и бонус 20%', ok: false, why: 'Мосты с бонусами и без истории — любимая цель взломщиков.' },
+        { l: 'Официальный мост сети или проверенный агрегатор', ok: true, why: 'Дольше или дороже, но надёжнее.' }] },
+      { t: 'Вы не хотите, чтобы сумма гонорара была видна всем в блокчейне, но всё должно быть законно.', opts: [
+        { l: 'Прогнать через миксер', ok: false, why: 'Миксеры попадают под санкции, а деньги после них блокируют биржи и банки.' },
+        { l: 'Держать в экранированном Zcash и дать бухгалтеру ключ просмотра', ok: true, why: 'Приватность для всех, прозрачность для тех, кому вы обязаны отчитаться.' }] },
+      { t: 'Конец года. Налоговая отчётность.', opts: [
+        { l: 'Выгрузить историю операций и передать бухгалтеру ключи просмотра', ok: true, why: 'Доход в криптовалюте декларируется так же, как любой другой.' },
+        { l: 'Не декларировать: блокчейн анонимный', ok: false, why: 'Блокчейн публичен, а биржи передают данные налоговым органам. Неуплата налога — нарушение закона.' }] },
+    ] } },
+  phone(f) {
+    if (f === 1) {
+      const e = U.f1.err;
+      return barN('Кошелёк · Cube L2', '', 'Cube L2') + `<div class="body"><div class="card">${ar('$', 'USDC', fmt(U.l2.USDC), 'Cube L2')}${ar('Ξ', 'ETH', fmt(U.l2.ETH), 'Cube L2')}</div>
+        ${U.st['c4-send'] ? okCard('Маша получила 50 USDC', 'Комиссия 0,000004 ETH, около 1 цента. В основной сети Ethereum такой перевод стоил бы около 1,5 $.')
+        : `<div class="card"><b>Отправить 50 USDC Маше</b><span class="mono muted">${short(MASHA)}</span><button class="btn" data-act="send1">Отправить</button></div>`}
+        ${e ? badCard(e) : ''}
+        ${(e || U.st['c4-gas']) && !U.st['c4-gas'] ? `<p class="muted">Где взять ETH для газа в Cube L2?</p>
+        <button class="choice" data-act="gas" data-arg="bot"><b>@GasHelper_bot</b><br><span class="muted">«Пришлите 20 USDC, верну ETH за минуту»</span></button>
+        <button class="choice" data-act="gas" data-arg="ex"><b>Вывести 0,01 ETH с биржи CubeX</b><br><span class="muted">Сеть вывода: Cube L2</span></button>` : ''}</div>`;
+    }
+    if (f === 2) {
+      if (!U.f2.bridge) return barN('Мост: Ethereum → Cube L2', '', 'Мост') + `<div class="body"><div class="card">${ar('$', 'USDC', '300', 'Ethereum')}</div>
+        <button class="choice" data-act="bridge" data-arg="official"><b>Официальный мост Cube L2</b><br><span class="muted">~15 минут туда, вывод обратно 7 дней · выпускает нативный USDC</span></button>
+        <button class="choice" data-act="bridge" data-arg="route"><b>Агрегатор CubeRoute</b><br><span class="muted">~2 минуты · работает 3 года · 2 аудита</span></button>
+        <button class="choice" data-act="bridge" data-arg="mega"><b>MegaBridge</b> <span class="ad">0% + бонус 20%</span><br><span class="muted">Запущен на прошлой неделе</span></button></div>`;
+      return barN('Мост: что получить?', '', 'Мост') + `<div class="body">${okCard('Мост выбран', U.f2.bridge === 'official' ? 'Официальный мост Cube L2' : 'Агрегатор CubeRoute')}
+        ${U.st['c4-native'] ? okCard('На Cube L2 пришло 300 USDC', 'Нативный выпуск, обёрток нет') : `<p>Какой токен получить в Cube L2?</p>
+        <button class="choice" data-act="recv" data-arg="wrap"><b>bUSDC</b><br><span class="muted">Обёртка моста · дешевле на 0,3%</span></button>
+        <button class="choice" data-act="recv" data-arg="native"><b>USDC</b><br><span class="muted">Нативный выпуск эмитента в сети Cube L2</span></button>`}</div>`;
+    }
+    if (f === 3) {
+      const s = U.f3;
+      if (!U.st['c4-formats']) return barN('Чей это адрес?', '', 'Мультичейн') + `<div class="body">${FMTS.map(([a, net], i) => `<div class="card"><span class="mono">${a}</span>
+        <div class="chips">${['BTC', 'ETH', 'SOL', 'TON'].map(n => { const sel = s.m[i] === n; const bad = sel && n !== net; return `<button class="chip ${sel && !bad ? 'sel' : ''}" style="${bad ? 'border-color:var(--bad);color:var(--bad)' : ''}" data-act="fmt" data-arg="${i}:${n}">${n}</button>`; }).join('')}</div></div>`).join('')}</div>`;
+      if (U.st['c4-btc']) return barN('CubeX · вывод BTC', '', 'Bitcoin') + `<div class="body">${okCard('Пётр получил 0,001 BTC', 'Сеть Bitcoin, адрес bc1…')}</div>`;
+      return barN('CubeX · вывод BTC', '', 'Мультичейн') + `<div class="body">
+        <div class="msg"><div class="who">Пётр</div><div>Пришли 0,001 BTC, вот мой адрес: <span class="mono">${s.btc ? ADDR_BTC : PETR}</span></div></div>
+        ${s.btc ? '<div class="msg me"><div>Это 0x, а нужен адрес Bitcoin</div></div><div class="msg"><div class="who">Пётр</div><div>Ой, точно, скинул правильный.</div></div>' : ''}
+        ${s.btc ? '<button class="btn" data-act="btc" data-arg="send">Вывести 0,001 BTC в сети Bitcoin</button>'
+        : `<button class="fee" data-act="btc" data-arg="btcnet"><b>Сеть Bitcoin</b><span class="num">0,00002 BTC</span></button>
+        <button class="fee" data-act="btc" data-arg="bsc"><b>BNB Chain (BTCB)</b><span class="num">0,000001 BTC</span></button>
+        <button class="btn sec" data-act="btc" data-arg="ask">Спросить у Петра адрес Bitcoin</button>`}${s.err ? badCard(s.err) : ''}</div>`;
+    }
+    if (f === 4) {
+      const s = U.f4;
+      const head = `<div class="card">${ar('ɱ', 'XMR', fmt(s.bal), s.stage === 'wait' ? 'заблокировано' : 'доступно')}<span class="muted">Seed-фраза: 25 слов · записана</span></div>`;
+      if (s.stage === 'sub') return barN('Monero', '', 'Monero') + `<div class="body">${head}<div class="msg"><div class="who">Аня</div><div>Верну тебе 0,5 XMR за билеты. Куда?</div></div>
+        <button class="choice" data-act="xsub" data-arg="main"><b>Основной адрес</b><br><span class="mono muted">${XMR_MAIN.slice(0, 12)}…${XMR_MAIN.slice(-6)}</span></button>
+        <button class="choice" data-act="xsub" data-arg="sub"><b>Новый субадрес с меткой «Аня»</b><br><span class="mono muted">${XMR_SUB.slice(0, 12)}…${XMR_SUB.slice(-6)}</span></button></div>`;
+      if (s.stage === 'wait') return barN('Monero', '', 'Monero') + `<div class="body">${head}<div class="card"><span class="status pending">Входящий · ${s.conf} из 10 подтверждений</span><b>+0,5 XMR от «Аня»</b><span class="muted">Монеты можно тратить после 10 блоков, примерно через 20 минут.</span></div>
+        <button class="btn sec" disabled>Оплатить худи (заблокировано)</button><button class="btn" data-act="xwait">Подождать 4 минуты</button></div>`;
+      if (s.stage === 'pay') return barN('Monero', '', 'Monero') + `<div class="body">${head}<div class="card"><b>Cube Merch · худи «Кубик»</b><span>0,2 XMR</span></div><button class="btn" data-act="xpay">Оплатить 0,2 XMR</button></div>`;
+      if (s.stage === 'proof') return barN('Cube Merch · поддержка', '', 'Monero') + `<div class="body">${head}<div class="msg"><div class="who">Cube Merch</div><div>Не видим оплату по заказу №318. Пришлите, пожалуйста, подтверждение.</div></div>
+        <button class="choice" data-act="xproof" data-arg="key"><b>Ключ транзакции (tx key) и её хеш</b></button>
+        <button class="choice" data-act="xproof" data-arg="spend"><b>Секретный ключ траты</b></button>
+        <button class="choice" data-act="xproof" data-arg="seed"><b>Seed-фразу из 25 слов</b></button></div>`;
+      return barN('Monero', '', 'Monero') + `<div class="body">${head}${okCard('Оплата подтверждена', 'Магазин проверил ключ транзакции: он показывает только этот платёж, и тратить с ним нельзя.')}</div>`;
+    }
+    if (f === 5) {
+      const s = U.f5;
+      const head = `<div class="card">${ar('ⓩ', 'ZEC прозрачные', fmt(s.t), short(ZEC_T))}${ar('ⓩ', 'ZEC экранированные', fmt(s.s), 'видны только вам')}</div>`;
+      if (s.stage === 'shield') return barN('Zcash', '', 'Zcash') + `<div class="body">${head}<div class="card"><span class="muted">Прозрачный адрес: суммы и история видны всем, как в Bitcoin.</span></div><button class="btn" data-act="zshield">Экранировать 3 ZEC</button></div>`;
+      if (s.stage === 'send') return barN('Оплата счёта', '', 'Zcash') + `<div class="body">${head}<div class="card"><b>Олег, дизайнер · счёт №12</b><span>1 ZEC</span><span class="mono muted">${ZEC_U.slice(0, 14)}…${ZEC_U.slice(-6)}</span></div>
+        <button class="ghost" data-act="zmemo">${s.memo ? '✓ Memo: «Счёт №12, логотип»' : 'Добавить memo'}</button><button class="btn" data-act="zsend">Отправить 1 ZEC</button></div>`;
+      if (s.stage === 'vk') return barN('Сообщения', '', 'Zcash') + `<div class="body">${head}<div class="msg"><div class="who">Инна, бухгалтер</div><div>Пришлите доступ к кошельку, чтобы я свела доходы и расходы за квартал.</div></div>
+        <button class="choice" data-act="zvk" data-arg="seed"><b>Seed-фразу</b></button><button class="choice" data-act="zvk" data-arg="spend"><b>Ключ траты (spending key)</b></button><button class="choice" data-act="zvk" data-arg="vk"><b>Ключ просмотра (viewing key)</b></button></div>`;
+      return barN('Zcash', '', 'Zcash') + `<div class="body">${head}${okCard('Инна видит отчёт', 'Ключ просмотра показывает входящие, исходящие и memo, но не позволяет тратить.')}</div>`;
+    }
+    return questHTML('ex4');
+  },
+});
+
+/* ================= КУБИК 5: DEFI ================= */
+const hf = (coll, price, debt) => debt ? coll * price * 0.8 / debt : Infinity;
+const hfs = v => v === Infinity ? '∞' : v.toLocaleString('ru-RU', { maximumFractionDigits: 2 });
+const STABLES = [['USDCube', 'Обеспечен долларами и облигациями в банке, ежемесячный отчёт аудитора', 'fiat'], ['DAIcube', 'Выпускается смарт-контрактом под криптозалог с запасом 150%', 'crypto'], ['TerraCube', 'Держится на сжигании токена LUNAcube, залога нет, платит 20% годовых', 'algo']];
+const STYPES = { fiat: 'Фиатный резерв', crypto: 'Криптозалог', algo: 'Алгоритм без залога' };
+regCube({
+  key: 'c5', n: 5, name: 'DeFi', nextCube: ['c6', '6 «Смарт-контракты и финал»'],
+  final: 'Вы выбираете валидатора по истории, а не по нулевой комиссии, не продаёте ликвидный стейкинг в панике, держите запас по health factor, считаете непостоянные потери и отличаете обеспеченный стейблкоин от алгоритмического.',
+  net: f => ['CubeChain', 'Ethereum', 'CubeLend', 'CubeSwap', 'Ethereum', 'Машина времени'][f - 1],
+  faces: [
+    { n: 1, short: 'Стейкинг', title: 'Стейкинг и выбор валидатора',
+      goal: 'Застейкайте 1 000 CUBE в сети CubeChain и получите первую награду.',
+      steps: [['c5-stake', 'Выбрать надёжного валидатора'], ['c5-reward', 'Получить награду за эпоху']],
+      explain: 'В сетях с доказательством доли валидаторы подтверждают блоки под залог. За ошибки и мошенничество сеть сжигает часть залога (слэшинг), и делегаторы теряют вместе с валидатором. Нулевая комиссия не компенсирует плохую историю.' },
+    { n: 2, short: 'Ликвидный стейкинг', title: 'Ликвидный стейкинг и дисконт',
+      goal: 'Внесите 1 ETH в протокол ликвидного стейкинга, а через неделю верните ETH без потерь.',
+      steps: [['c5-lst', 'Получить lsETH за 1 ETH'], ['c5-queue', 'Вывести через очередь, а не продавать с дисконтом']],
+      explain: 'Ликвидный стейкинг выдаёт токен-расписку (lsETH), который можно передавать и продавать. Его цена на рынке может уходить ниже ETH, особенно в панику. Протокол погашает его 1:1 через очередь вывода, но это занимает дни.' },
+    { n: 3, short: 'Кредитование', title: 'Заём под залог и health factor',
+      goal: 'Займите USDC под 2 ETH так, чтобы пережить падение ETH на 30%.',
+      steps: [['c5-borrow', 'Занять с health factor выше 1,5'], ['c5-crash', 'Пережить падение ETH на 30% без ликвидации']],
+      explain: 'Health factor = залог × порог ликвидации ÷ долг. Здесь порог 80%. Когда HF опускается ниже 1, любой может погасить часть вашего долга и забрать залог со скидкой. Запас по HF — ваша подушка на случай падения цены.' },
+    { n: 4, short: 'Пулы и фарминг', title: 'Пул ликвидности и непостоянные потери',
+      goal: 'Внесите ETH и USDC в пул, разберитесь с непостоянными потерями и выберите фарм.',
+      steps: [['c5-il', 'Посчитать непостоянные потери'], ['c5-farm', 'Выбрать проверенный фарм']],
+      explain: 'Пул держит две монеты в пропорции по стоимости. Когда цена одной растёт, пул продаёт её по пути, и вы получаете меньше, чем если бы просто держали. При росте в 2 раза это около 5,7%. Комиссии могут это перекрыть, а 3 000% годовых у анонимов обычно означают, что деньги заберут.' },
+    { n: 5, short: 'Стейблкоины', title: 'Чем обеспечены стейблкоины',
+      goal: 'Разберитесь, что стоит за тремя стейблкоинами, и разместите 1 000 $.',
+      steps: [['c5-types', 'Определить тип обеспечения'], ['c5-stable', 'Разместить без алгоритмического стейблкоина']],
+      explain: 'Фиатный стейблкоин держится на резервах в банке и доверии к эмитенту. Криптозалоговый — на избыточном залоге в смарт-контракте. Алгоритмический без залога держится только на вере рынка, и при панике цена уходит к нулю. Высокая доходность — плата за этот риск.' },
+    { n: 6, short: 'Экзамен', title: 'Экзамен «Шторм»',
+      goal: 'Проведите портфель через месяц штормового рынка. Машина времени отмотает неделю, если вы ошибётесь.',
+      steps: [['c5-storm', 'Пережить шторм без потерь']],
+      explain: 'Шторм проверяет всё сразу: запас по заёму, терпение с ликвидным стейкингом, умение пройти мимо обещаний сверхдоходности и привычку проверять первоисточник.',
+      legal: 'Это учебная модель, а не инвестиционная рекомендация.' },
+  ],
+  fresh: () => Object.assign(baseState(1), { f1: { val: null, epoch: 0, cube: 1000 }, f2: { eth: 1, ls: 0, stage: 'dep' },
+    f3: { coll: 0, debt: 0, price: 3000, crashed: false }, f4: { lp: false, x2: false, wrong: false }, f5: { m: {} } }),
+  A: {
+    val(k) { if (k === 'max') { sn(); U.f1.cube -= 50; tp('Слэшинг', 'MaxYield подписал два разных блока на одной высоте. Сеть сожгла 5% всех ставок у этого валидатора, включая ваши 50 CUBE. Нулевая комиссия не стоила потерь. Отмотаем время.', true); return; } U.f1.val = k; mk('c5-stake'); },
+    epoch() { U.f1.epoch += 1; },
+    claim() { U.f1.cube += 2.4; mk('c5-reward'); },
+    lsdep() { U.f2.eth = 0; U.f2.ls = 1; U.f2.stage = 'need'; mk('c5-lst'); },
+    lsout(k) { if (k === 'sell') { sn(); U.f2.ls = 0; U.f2.eth = 0.92; tp('Продали с дисконтом 8%', 'В панику lsETH на DEX стоил 0,92 ETH. Через очередь протокол вернул бы 1 ETH за 5 дней, а деньги были нужны только через неделю. Отмотаем время.', true); return; } U.f2.stage = 'queue'; },
+    lswait() { U.f2.ls = 0; U.f2.eth = 1.0008; U.f2.stage = 'done'; mk('c5-queue'); },
+    coll() { U.f3.coll = 2; },
+    borrow(a) { sn(); U.f3.debt = +a; if (hf(2, 3000, +a) > 1.5) mk('c5-borrow'); },
+    crash() {
+      const s = U.f3; s.price = 2100;
+      if (hf(s.coll, s.price, s.debt) < 1) { tp('Ликвидация', `HF упал до ${hfs(hf(s.coll, 2100, s.debt))}. Ликвидатор погасил часть долга и забрал ваш ETH со скидкой 5%. Отмотаем время к моменту до займа.`, true); return; }
+      s.crashed = true; mk('c5-crash');
+    },
+    lp() { U.f4.lp = true; },
+    x2() { U.f4.x2 = true; },
+    il(k) { if (k === '5.7') mk('c5-il'); else U.f4.wrong = true; },
+    farm(k) { if (k === 'moon') { sn(); tp('Rug pull', 'Через три дня анонимная команда MoonFarm вывела все деньги из контракта через скрытую функцию. 3 000% годовых платились из депозитов новых участников. Отмотаем время.', true); return; } mk('c5-farm'); },
+    stype(arg) { const [i, t] = arg.split(':'); U.f5.m[i] = t; if (STABLES.every(([, , ty], k) => U.f5.m[k] === ty)) mk('c5-types'); },
+    alloc(k) { if (k === 'algo') { sn(); tp('Депег: TerraCube стоит 0,04 $', 'Крупный держатель продал, цена ушла ниже 1 $, механизм сжигания напечатал горы LUNAcube, и за два дня оба токена обесценились. 20% годовых были платой за этот риск. Отмотаем время.', true); return; } mk('c5-stable'); },
+  },
+  Q: { ex5: { title: 'Шторм', mark: 'c5-storm', trapTitle: 'Машина времени: отматываем неделю',
+    doneT: 'Портфель пережил шторм', doneText: 'Ни одной ликвидации, ни одной продажи в панику, ни одного рагпула.',
+    stages: [
+      { t: 'Неделя 1. ETH упал на 25%. HF вашего займа опустился с 1,9 до 1,4.', opts: [
+        { l: 'Довнести залог или погасить часть долга', ok: true, why: 'HF снова выше 1,8, следующее падение вас не ликвидирует.' },
+        { l: 'Занять ещё и докупить ETH на просадке', ok: false, why: 'HF упал до 1,05. Ещё −5%, и залог ушёл ликвидатору.' }] },
+      { t: 'Неделя 2. lsETH на DEX стоит 0,93 ETH. Деньги вам не нужны ближайший месяц.', opts: [
+        { l: 'Продать всё на DEX, пока не стало хуже', ok: false, why: 'Вы зафиксировали минус 7%, хотя протокол погасил бы lsETH 1:1.' },
+        { l: 'Не продавать в панику; если нужен ETH, выйти через очередь вывода', ok: true, why: 'Дисконт на рынке — не потеря, пока вы не продали.' }] },
+      { t: 'Неделя 3. В чате: «Новый фарм, 5 000% годовых, закрываем через 2 часа!»', opts: [
+        { l: 'Зайти на 10% портфеля, вдруг повезёт', ok: false, why: 'Через сутки фарм закрылся вместе с депозитами.' },
+        { l: 'Пройти мимо: команда анонимная, контракт не проверен', ok: true, why: 'Срочность и нереальная доходность — два признака ловушки.' }] },
+      { t: 'Неделя 4. USDCube на сутки подешевел до 0,88 $ из-за проблем банка, где хранится часть резервов.', opts: [
+        { l: 'Проверить отчёт о резервах и заявление эмитента, а не слухи', ok: true, why: 'Резервы оказались целы, через три дня цена вернулась к 1 $.' },
+        { l: 'Срочно переложить всё в TerraCube, он «держится»', ok: false, why: 'Через неделю TerraCube потерял привязку окончательно.' }] },
+    ] } },
+  phone(f) {
+    if (f === 1) {
+      const s = U.f1;
+      const head = `<div class="card">${ar('CUBE', 'CUBE', fmt(s.cube), s.val ? 'в стейкинге' : 'на кошельке')}</div>`;
+      if (!s.val) return barN('Стейкинг CUBE', '', 'CubeChain') + `<div class="body">${head}<p class="muted">Кому делегировать 1 000 CUBE?</p>
+        <button class="choice" data-act="val" data-arg="birch"><b>Берёзка</b><br><span class="muted">комиссия 5% · аптайм 99,9% · 4 года без штрафов</span></button>
+        <button class="choice" data-act="val" data-arg="max"><b>MaxYield</b> <span class="ad">0% комиссии</span><br><span class="muted">аптайм 71% · штраф за двойную подпись в мае</span></button>
+        <button class="choice" data-act="val" data-arg="oak"><b>Дуб</b><br><span class="muted">комиссия 7% · аптайм 99,7% · 3 года без штрафов</span></button></div>`;
+      return barN('Стейкинг CUBE', '', 'CubeChain') + `<div class="body">${head}<div class="card"><b>Валидатор ${s.val === 'birch' ? 'Берёзка' : 'Дуб'}</b><span class="muted">Награда начисляется раз в эпоху (около 6 часов).</span><span class="num">Эпох прошло: ${s.epoch}</span></div>
+        ${U.st['c5-reward'] ? okCard('Награда получена: +2,4 CUBE', 'Около 3,5% годовых за вычетом комиссии валидатора.') : s.epoch ? '<button class="btn" data-act="claim">Забрать 2,4 CUBE</button>' : '<button class="btn" data-act="epoch">Подождать эпоху</button>'}</div>`;
+    }
+    if (f === 2) {
+      const s = U.f2;
+      const head = `<div class="card">${ar('Ξ', 'ETH', fmt(s.eth))}${ar('ls', 'lsETH', fmt(s.ls), 'расписка за ETH в стейкинге')}</div>`;
+      if (s.stage === 'dep') return barN('Ликвидный стейкинг', '', 'Ethereum') + `<div class="body">${head}<div class="card"><b>CubeStake</b><span class="muted">Внесите ETH, получите lsETH 1:1. Награды копятся в курсе lsETH.</span></div><button class="btn" data-act="lsdep">Внести 1 ETH</button></div>`;
+      if (s.stage === 'need') return barN('Ликвидный стейкинг', '', 'Ethereum') + `<div class="body">${head}<div class="msg"><div class="who">Напоминание</div><div>Через неделю нужен 1 ETH: оплата ремонта.</div></div>
+        <div class="card"><span class="muted">Рынок штормит</span><b>lsETH на DEX: 0,92 ETH</b><span class="muted">Очередь вывода в протоколе: 5 дней, 1:1</span></div>
+        <button class="choice" data-act="lsout" data-arg="sell"><b>Продать на DEX сейчас</b></button><button class="choice" data-act="lsout" data-arg="queue"><b>Встать в очередь вывода</b></button></div>`;
+      if (s.stage === 'queue') return barN('Очередь вывода', '', 'Ethereum') + `<div class="body">${head}<div class="card"><span class="status pending">В очереди</span><b>1 lsETH → 1 ETH</b><span class="muted">Осталось 5 дней</span></div><button class="btn" data-act="lswait">Промотать 5 дней</button></div>`;
+      return barN('Ликвидный стейкинг', '', 'Ethereum') + `<div class="body">${head}${okCard('Получено 1,0008 ETH', 'Вклад и награда за неделю, без дисконта')}</div>`;
+    }
+    if (f === 3) {
+      const s = U.f3; const h = hf(s.coll, s.price, s.debt);
+      const head = `<div class="card"><dl class="kv"><dt>Цена ETH</dt><dd class="num">${s.price.toLocaleString('ru-RU')} $</dd><dt>Залог</dt><dd class="num">${fmt(s.coll)} ETH</dd><dt>Долг</dt><dd class="num">${s.debt.toLocaleString('ru-RU')} USDC</dd><dt>Health factor</dt><dd class="num" style="color:${h < 1.5 ? 'var(--bad)' : 'var(--ok)'}"><b>${hfs(h)}</b></dd></dl></div>`;
+      if (!s.coll) return barN('CubeLend', '', 'CubeLend') + `<div class="body">${head}<button class="btn" data-act="coll">Внести 2 ETH в залог</button></div>`;
+      if (!s.debt) return barN('CubeLend', '', 'CubeLend') + `<div class="body">${head}<p>Сколько занять? Порог ликвидации 80%.</p>
+        ${[1000, 2500, 4000].map(a => `<button class="fee" data-act="borrow" data-arg="${a}"><b>${a.toLocaleString('ru-RU')} USDC</b><span class="num">HF ${hfs(hf(2, 3000, a))}</span></button>`).join('')}</div>`;
+      return barN('CubeLend', '', 'CubeLend') + `<div class="body">${head}
+        ${s.crashed ? okCard('Ликвидации не было', 'После падения HF остался выше 1.') : !U.st['c5-borrow'] ? badCard('HF ниже 1,5', 'Слишком мало запаса. Нажмите «Промотать», чтобы увидеть, чем это кончится.') + '<button class="btn" data-act="crash">Промотать: ETH −30%</button>' : '<button class="btn" data-act="crash">Промотать: ETH −30%</button>'}</div>`;
+    }
+    if (f === 4) {
+      const s = U.f4;
+      if (!s.lp) return barN('CubeSwap · пул ETH/USDC', '', 'CubeSwap') + `<div class="body"><div class="card">${ar('Ξ', 'ETH', '1')}${ar('$', 'USDC', '3 000')}</div><button class="btn" data-act="lp">Внести 1 ETH + 3 000 USDC в пул</button></div>`;
+      if (!s.x2) return barN('Ваша позиция', '', 'CubeSwap') + `<div class="body"><div class="card"><b>Доля в пуле: 6 000 $</b><span class="muted">1 ETH + 3 000 USDC</span></div><button class="btn" data-act="x2">Промотать: ETH вырос до 6 000 $</button></div>`;
+      if (!U.st['c5-il']) return barN('Ваша позиция', '', 'CubeSwap') + `<div class="body"><div class="card"><b>В пуле: 0,707 ETH + 4 243 USDC = 8 485 $</b><span class="muted">Если бы просто держали 1 ETH и 3 000 USDC: 9 000 $</span></div>
+        <p>Сколько вы недополучили из-за непостоянных потерь?</p>${[['0', '0%'], ['5.7', '≈ 5,7%'], ['50', '50%']].map(([k, l]) => `<button class="choice" data-act="il" data-arg="${k}">${l}</button>`).join('')}${s.wrong ? badCard('Не совсем', '(9 000 − 8 485) ÷ 9 000 ≈ 5,7%') : ''}</div>`;
+      return barN('Фермы', '', 'CubeSwap') + `<div class="body">${okCard('Верно: ≈ 5,7%', 'Пул продавал ETH по мере роста цены.')}
+        ${U.st['c5-farm'] ? okCard('LP-токены в ферме CubeSwap', '9% годовых комиссиями и наградами') : `<p>Куда положить LP-токены?</p>
+        <button class="choice" data-act="farm" data-arg="cube"><b>Ферма CubeSwap</b><br><span class="muted">9% годовых · аудит · работает 3 года</span></button>
+        <button class="choice" data-act="farm" data-arg="moon"><b>MoonFarm</b> <span class="ad">3 000% годовых</span><br><span class="muted">команда анонимная · контракт не верифицирован</span></button>`}</div>`;
+    }
+    if (f === 5) {
+      const s = U.f5;
+      if (!U.st['c5-types']) return barN('Стейблкоины', '', 'Ethereum') + `<div class="body">${STABLES.map(([n, d, ty], i) => `<div class="card"><b>${n}</b><span class="muted">${d}</span>
+        <div class="chips">${Object.entries(STYPES).map(([k, l]) => { const sel = s.m[i] === k; const bad = sel && k !== ty; return `<button class="chip ${sel && !bad ? 'sel' : ''}" style="${bad ? 'border-color:var(--bad);color:var(--bad)' : ''}" data-act="stype" data-arg="${i}:${k}">${l}</button>`; }).join('')}</div></div>`).join('')}</div>`;
+      return barN('Разместить 1 000 $', '', 'Ethereum') + `<div class="body">${okCard('Типы определены верно')}
+        ${U.st['c5-stable'] ? okCard('Размещено', '500 USDCube и 500 DAIcube: два разных вида обеспечения') : `<button class="choice" data-act="alloc" data-arg="algo"><b>Всё в TerraCube</b><br><span class="muted">20% годовых</span></button>
+        <button class="choice" data-act="alloc" data-arg="mix"><b>Поровну USDCube и DAIcube</b><br><span class="muted">2–4% годовых, два разных вида обеспечения</span></button>`}</div>`;
+    }
+    return questHTML('ex5');
+  },
+});
+
+/* ================= КУБИК 6: СМАРТ-КОНТРАКТЫ И ФИНАЛ ================= */
+const CODE = [
+  ['', 'contract CubeMoon is ERC20, Ownable {'],
+  ['', '  uint256 public fee = 2; // процент с перевода'],
+  ['', '  constructor() ERC20("CubeMoon", "CMOON") {'],
+  ['', '    _mint(msg.sender, 1_000_000e18);'],
+  ['', '  }'],
+  ['', '  function transfer(address to, uint256 a) public override returns (bool) {'],
+  ['', '    uint256 f = a * fee / 100;'],
+  ['', '    _transfer(msg.sender, owner(), f);'],
+  ['', '    return super.transfer(to, a - f);'],
+  ['', '  }'],
+  ['fee', '  function setFee(uint256 f) external onlyOwner { fee = f; }'],
+  ['mint', '  function rewardHolders(uint256 a) external onlyOwner { _mint(owner(), a); }'],
+  ['', '}'],
+];
+const SHOP = '0x6aE2b91C4d07F35e8B1c9A0D2f4E7b63C5a81D90';
+const APPROVALS = [['router', 'CubeSwap Router', 'USDC · ровно 100', false], ['drain', short(DRAINER) + ' · неизвестный', 'USDC · без ограничений', true], ['oldfarm', 'OldFarm · закрыт в 2024', 'LP-токены · без ограничений', true], ['nft', 'free-nft-mint.example', 'CubeApes · все NFT', true]];
+regCube({
+  key: 'c6', n: 6, name: 'Смарт-контракты и финал', nextCube: null,
+  final: 'Курс Cryptocube пройден. Вы читаете контракты, расшифровываете вызовы, отзываете разрешения, работаете с мультиподписью, выпускаете свой токен и получили сертификат в тестовой сети.',
+  net: f => f === 6 ? 'Sepolia (тест)' : 'Ethereum',
+  faces: [
+    { n: 1, short: 'Чтение кода', title: 'Читаем контракт перед покупкой',
+      goal: 'Друг советует купить новый токен CMOON. Найдите в коде строки, которые дают владельцу власть над вашими деньгами.',
+      steps: [['c6-mint', 'Найти скрытую эмиссию'], ['c6-fee', 'Найти комиссию без верхнего предела']],
+      explain: 'onlyOwner значит, что функцию может вызвать только владелец контракта. «Награда держателям», которая выпускает токены владельцу, — это печатный станок: он напечатает и продаст. Комиссия без верхнего предела может стать 100%, и продать токен станет невозможно.' },
+    { n: 2, short: 'Подпись вызова', title: 'Что на самом деле подписывает кошелёк',
+      goal: 'Два сайта просят подтвердить транзакцию. Прочитайте расшифровку вызова, а не кнопку сайта.',
+      steps: [['c6-decode', 'Подтвердить честный перевод, сверив расшифровку'], ['c6-reject', 'Отклонить setApprovalForAll под видом минта']],
+      explain: 'Транзакция к контракту — это функция и её аргументы (calldata). Первые 4 байта — селектор функции: a9059cbb это transfer, a22cb465 это setApprovalForAll. Хороший кошелёк расшифровывает их. setApprovalForAll отдаёт оператору право забрать все NFT коллекции.' },
+    { n: 3, short: 'Отзыв разрешений', title: 'Отзываем старые разрешения',
+      goal: 'Проверьте, кому вы разрешили тратить токены, и отзовите всё лишнее.',
+      steps: [['c6-revoke', 'Отозвать три опасных разрешения']],
+      explain: 'Разрешения (approve и setApprovalForAll) живут бессрочно, даже если вы забыли о сайте. Раз в несколько месяцев проверяйте их в кошельке или обозревателе блоков и отзывайте лишние. Отзыв — это обычная транзакция, подписи на сторонних сайтах для него не нужны.' },
+    { n: 4, short: 'Мультиподпись', title: 'Казна клуба на мультиподписи 2 из 3',
+      goal: 'Оплатите из казны клуба 500 USDC дизайнеру. Владельцы: вы, Маша и Пётр, нужно 2 подписи из 3.',
+      steps: [['c6-propose', 'Предложить транзакцию и подписать'], ['c6-exec', 'Собрать вторую подпись и исполнить']],
+      explain: 'Мультиподпись требует несколько ключей для каждой операции, поэтому кража одного ключа ничего не даёт. Самая опасная операция в ней — смена владельцев и порога. Такие просьбы проверяют по другому каналу связи.' },
+    { n: 5, short: 'Свой токен', title: 'Выпускаем свой ERC-20',
+      goal: 'Выпустите учебный токен в тестовой сети и откажитесь от прав владельца.',
+      steps: [['c6-deploy', 'Развернуть контракт из своего кошелька'], ['c6-renounce', 'Отказаться от прав владельца']],
+      explain: 'Выпустить токен может любой за пару минут, поэтому сам факт токена ничего не значит. Отказ от прав владельца (renounceOwnership) показывает, что больше никто не напечатает токены и не поменяет правила. Деплой подписывают в своём кошельке, приватный ключ никому не отдают.',
+      legal: 'Публичное размещение токенов и привлечение денег регулируется законом. Здесь токен учебный и живёт только в тестовой сети.' },
+    { n: 6, short: 'Финал', title: 'Финал в тестовой сети и сертификат',
+      goal: 'Пройдите финальный чек-лист в тестовой сети Sepolia и выпустите непередаваемый сертификат.',
+      steps: [['c6-sepolia', 'Пройти финальный чек-лист'], ['c6-cert', 'Выпустить сертификат Cryptocube']],
+      explain: 'Тестовые сети работают как настоящие, но их монеты ничего не стоят и раздаются бесплатно в кранах. Soulbound-токен нельзя передать или продать: он подтверждает, что именно этот адрес прошёл курс.',
+      legal: 'В прототипе выпуск сертификата смоделирован. В рабочей версии он пройдёт в настоящей сети Sepolia.' },
+  ],
+  fresh: () => Object.assign(baseState(1), { f1: { msg: null }, f2: { stage: 1 }, f3: { rev: {} }, f4: { stage: 'propose', petr: null, sigs: 0 }, f5: { deployed: false, mint: true }, f6: { cert: null } }),
+  A: {
+    line(k) {
+      const i = +k; const id = CODE[i][0];
+      if (id === 'mint') { mk('c6-mint'); U.f1.msg = 'Верно: «награда держателям» печатает токены владельцу. Он может выпустить миллиард и продать их вам.'; return; }
+      if (id === 'fee') { mk('c6-fee'); U.f1.msg = 'Верно: владелец может поставить комиссию 100%, и любой перевод или продажа отдаст ему всё.'; return; }
+      U.f1.msg = 'Эта строка безопасна: ' + (i === 3 ? 'начальный выпуск при создании контракта, один раз.' : i === 7 ? 'комиссия уходит владельцу, но пока она 2%. Ищите, кто может её менять.' : 'обычная часть токена ERC-20.');
+    },
+    buymoon() { tp('Владелец напечатал и продал', 'Через неделю владелец вызвал rewardHolders, выпустил 50 млн CMOON и продал их в пул. Цена упала на 98%. Потом поставил комиссию 100%, и продать остатки стало невозможно.'); },
+    tx(k) {
+      if (k === 'ok') { mk('c6-decode'); U.f2.stage = 2; return; }
+      if (k === 'nftsign') { tp('Все NFT ушли оператору', 'Кнопка обещала бесплатный минт, а расшифровка показывала setApprovalForAll(оператор, true). Оператор забрал все 4 NFT коллекции CubeApes одной транзакцией.'); return; }
+      U.f2.stage = 3; mk('c6-reject');
+    },
+    revoke(k) { U.f3.rev[k] = true; if (APPROVALS.filter(a => a[3]).every(a => U.f3.rev[a[0]])) mk('c6-revoke'); },
+    fakerevoke() { tp('«Бесплатный отзыв» оказался дрейнером', 'Сайт revoke-free.example попросил подписать Permit «для проверки». Отзыв разрешений — обычная транзакция в вашем кошельке, никаких подписей на сторонних сайтах.'); },
+    propose() { U.f4.stage = 'sign'; U.f4.sigs = 1; mk('c6-propose'); },
+    petr(k) { if (k === 'accept') { tp('Казну увели', '«Пётр с нового номера» был мошенником. Порог 1 из 3 и новый владелец позволили ему одной подписью вывести все 5 000 USDC.'); return; } U.f4.petr = 'checked'; },
+    masha() { U.f4.sigs = 2; },
+    exec() { U.f4.stage = 'done'; mk('c6-exec'); },
+    mintopt() { U.f5.mint = !U.f5.mint; },
+    deploy(k) { if (k === 'service') { tp('Ключ ушёл «сервису»', 'easy-token.example попросил приватный ключ, «чтобы развернуть за вас». Через минуту с этого адреса ушли все средства во всех сетях. Деплой подписывают в своём кошельке.'); return; } U.f5.deployed = true; mk('c6-deploy'); },
+    renounce() { mk('c6-renounce'); },
+    cert() { U.f6.cert = txHash('cert' + Date.now()).slice(0, 18); mk('c6-cert'); },
+  },
+  Q: { ex6: { title: 'Финал в Sepolia', mark: 'c6-sepolia', trapTitle: 'Стоп, это ошибка',
+    doneT: 'Чек-лист пройден', doneText: 'Осталось выпустить сертификат.',
+    after: () => U.st['c6-cert'] ? certHTML() : '<button class="btn" data-act="cert">Выпустить сертификат (подписать mint в Sepolia)</button>',
+    stages: [
+      { t: 'Для финала нужен тестовый ETH в сети Sepolia.', opts: [
+        { l: 'Купить 1 SepoliaETH за 15 $ у продавца в чате', ok: false, why: 'Тестовые монеты ничего не стоят и раздаются бесплатно. Продавец просто заберёт 15 $.' },
+        { l: 'Взять бесплатно в кране (faucet)', ok: true, why: 'Кран бесплатно выдаёт тестовые монеты.' }] },
+      { t: 'Где вы храните seed-фразу основного кошелька?', opts: [
+        { l: 'Офлайн: на бумаге или металле, в надёжном месте', ok: true, why: 'Seed-фраза не должна касаться интернета.' },
+        { l: 'В заметках телефона, они синхронизируются', ok: false, why: 'Облачная синхронизация — это копия ключей на чужом сервере.' }] },
+      { t: 'Крупная сумма лежит…', opts: [
+        { l: 'На аппаратном кошельке, на горячем только мелочь', ok: true, why: 'Ключи от крупных сумм не должны быть на устройстве, которое ходит в интернет.' },
+        { l: 'На бирже, там же есть поддержка', ok: false, why: 'Не ваши ключи — не ваши монеты. Вспомните CubeX.' }] },
+      { t: 'Кошелёк показывает: mint(to: ваш адрес), контракт Cryptocube Certificate, сеть Sepolia, газ 0,0003 SepoliaETH.', opts: [
+        { l: 'Переключиться на основную сеть Ethereum, чтобы сертификат был «настоящим»', ok: false, why: 'Контракт сертификата живёт в Sepolia. В основной сети вы заплатили бы настоящий газ за вызов по чужому адресу.' },
+        { l: 'Подписать: сеть тестовая, функция и адрес понятны', ok: true, why: 'Вы проверили сеть, функцию и получателя. Это и есть привычка, ради которой был курс.' }] },
+    ] } },
+  phone(f) {
+    if (f === 1) {
+      const m = U.f1.msg;
+      return barN('Обозреватель · CubeMoon', '', 'Ethereum') + `<div class="body"><p class="muted">Нажмите на строку, которая кажется опасной.</p>
+        <div class="card" style="gap:0;padding:6px">${CODE.map(([id, l], i) => `<button class="mono" data-act="line" data-arg="${i}" style="text-align:left;border:0;background:${(id === 'mint' && U.st['c6-mint']) || (id === 'fee' && U.st['c6-fee']) ? 'var(--bad-soft)' : 'transparent'};padding:3px 4px;white-space:pre-wrap;word-break:normal;overflow-wrap:anywhere;font-size:11px">${esc(l)}</button>`).join('')}</div>
+        ${m ? `<div class="card">${m}</div>` : ''}<button class="btn sec" data-act="buymoon">Купить CMOON на 100 USDC</button></div>`;
+    }
+    if (f === 2) {
+      const s = U.f2.stage;
+      if (s === 1) return barN('Запрос транзакции', '', 'Ethereum') + `<div class="body"><div class="site"><div class="bar">cubeshop.example</div><div class="in"><b>Оплатить заказ: 10 USDC</b></div></div>
+        <div class="card"><b>Расшифровка</b><dl class="kv"><dt>Контракт</dt><dd>USDC</dd><dt>Функция</dt><dd class="mono">transfer</dd><dt>to</dt><dd class="mono">${short(SHOP)} · CubeShop</dd><dt>amount</dt><dd>10 USDC</dd></dl>
+        <span class="mono muted" style="font-size:11px">0xa9059cbb000…${SHOP.slice(2, 10).toLowerCase()}…0000989680</span></div>
+        <div class="row"><button class="btn sec" data-act="tx" data-arg="no1">Отклонить</button><button class="btn" data-act="tx" data-arg="ok">Подтвердить</button></div></div>`;
+      if (s === 2) return barN('Запрос транзакции', '', 'Ethereum') + `<div class="body">${okCard('Заказ оплачен', 'Расшифровка совпала с тем, что обещал сайт.')}<div class="site"><div class="bar">free-nft-mint.example</div><div class="in"><b>Бесплатный минт CubeApes #2</b><span class="muted">Только сегодня!</span></div></div>
+        <div class="card" style="border-color:var(--bad)"><b>Расшифровка</b><dl class="kv"><dt>Контракт</dt><dd>CubeApes (у вас 4 NFT)</dd><dt>Функция</dt><dd class="mono" style="color:var(--bad)">setApprovalForAll</dd><dt>operator</dt><dd class="mono">${short(DRAINER)}</dd><dt>approved</dt><dd class="mono">true</dd></dl>
+        <span class="mono muted" style="font-size:11px">0xa22cb465000…${DRAINER.slice(2, 10).toLowerCase()}…0001</span></div>
+        <div class="row"><button class="btn sec" data-act="tx" data-arg="nftsign">Подтвердить</button><button class="btn" data-act="tx" data-arg="nftno">Отклонить</button></div></div>`;
+      return barN('Кошелёк', '', 'Ethereum') + `<div class="body">${okCard('Заказ оплачен')}${okCard('Минт отклонён', 'Все 4 NFT CubeApes на месте.')}</div>`;
+    }
+    if (f === 3) {
+      const r = U.f3.rev;
+      return barN('Разрешения', '', 'Ethereum') + `<div class="body">${APPROVALS.map(([k, who, what]) => `<div class="card"><b>${who}</b><span class="muted">${what}</span>
+        ${r[k] ? '<span class="status ok">Отозвано</span>' : `<button class="ghost" data-act="revoke" data-arg="${k}">Отозвать · газ 0,0004 ETH</button>`}</div>`).join('')}
+        ${U.st['c6-revoke'] ? okCard('Опасные разрешения отозваны', 'Точное разрешение роутера можно оставить: оно ограничено суммой.') : `<div class="msg scam"><div class="who">RevokeHelper · бот</div><div>Проверим и отзовём все разрешения бесплатно! Подпишите на revoke-free.example</div></div><button class="btn sec" data-act="fakerevoke">Открыть revoke-free.example</button>`}</div>`;
+    }
+    if (f === 4) {
+      const s = U.f4;
+      const head = `<div class="card">${ar('$', 'Казна клуба', '5 000 USDC', 'Владельцы: вы, Маша, Пётр · порог 2 из 3')}</div>`;
+      if (s.stage === 'propose') return barN('Мультиподпись', '', 'Ethereum') + `<div class="body">${head}<div class="card"><b>Новая транзакция</b><span>500 USDC → дизайнер Олег</span><span class="mono muted">${short(SHOP)}</span></div><button class="btn" data-act="propose">Предложить и подписать</button></div>`;
+      if (s.stage === 'sign') return barN('Мультиподпись', '', 'Ethereum') + `<div class="body">${head}<div class="card"><span class="status pending">Подписей ${s.sigs} из 2</span><b>500 USDC → Олег</b></div>
+        ${s.petr ? '<div class="msg"><div class="who">Пётр · видеосвязь</div><div>Ничего я не терял, это не я! Спасибо, что позвонил.</div></div>' : `<div class="msg scam"><div class="who">Пётр · новый номер</div><div>Потерял телефон! Добавь мой новый адрес владельцем и поставь порог 1 из 3, чтобы мы не тормозили.</div></div>
+        <div class="row"><button class="btn sec" data-act="petr" data-arg="accept">Принять изменение</button><button class="btn" data-act="petr" data-arg="call">Позвонить Петру по видео</button></div>`}
+        ${s.sigs < 2 ? '<button class="btn sec" data-act="masha">Попросить Машу подписать</button>' : '<button class="btn" data-act="exec">Исполнить транзакцию</button>'}</div>`;
+      return barN('Мультиподпись', '', 'Ethereum') + `<div class="body">${head}${okCard('Исполнено: 500 USDC отправлены Олегу', 'Подписали вы и Маша. Владельцы и порог не менялись.')}</div>`;
+    }
+    if (f === 5) {
+      const s = U.f5; const nm = esc(U.inp.tname || 'Учебный кубик'); const sy = esc(U.inp.tsym || 'KUB');
+      if (!s.deployed) return barN('Новый токен · Sepolia', '', 'Sepolia (тест)') + `<div class="body">
+        <div class="field"><label for="tname">Название</label><input id="tname" data-k="tname" value="${nm}" maxlength="24"></div>
+        <div class="field"><label for="tsym">Тикер</label><input id="tsym" data-k="tsym" value="${sy}" maxlength="6"></div>
+        <div class="card"><span>Выпуск: 1 000 000 · 18 знаков</span><button class="ghost" data-act="mintopt">${s.mint ? '✓ ' : ''}Оставить владельцу право выпуска (mint)</button></div>
+        <button class="btn" data-act="deploy" data-arg="wallet">Подписать деплой в своём кошельке</button>
+        <button class="btn sec" data-act="deploy" data-arg="service">easy-token.example: «Вставьте приватный ключ, развернём за вас»</button></div>`;
+      return barN(nm + ' · ' + sy, '', 'Sepolia (тест)') + `<div class="body">${okCard('Контракт развёрнут', 'Адрес: ' + short(addrOf(nm + sy)))}
+        <div class="card"><dl class="kv"><dt>Выпущено</dt><dd>1 000 000 ${sy}</dd><dt>Право выпуска</dt><dd>${s.mint ? 'есть у владельца' : 'нет'}</dd><dt>Владелец</dt><dd>${U.st['c6-renounce'] ? 'нет (0x000…0000)' : 'вы'}</dd></dl></div>
+        ${doneBtn('c6-renounce', 'renounceOwnership: отказаться от прав', 'Права владельца сожжены', 'renounce')}</div>`;
+    }
+    return questHTML('ex6');
+  },
+});
+function certHTML() {
+  const xp = S.xp + T.xp + ['c3', 'c4', 'c5', 'c6'].reduce((a, k) => a + (k === CUR ? U.xp : CUBES[k].S.xp), 0);
+  const cubes = [S.done[6], T.done[6]].concat(['c3', 'c4', 'c5'].map(k => CUBES[k].S.done[6])).filter(Boolean).length + 1;
+  return `<div class="card" style="border:2px solid var(--burn);background:var(--wood);color:var(--burn)"><span class="eyebrow" style="color:var(--burn)">Soulbound · Sepolia</span><b style="font:700 18px var(--font-display)">Сертификат Cryptocube</b>
+    <span>Кубиков пройдено: ${cubes} из 6 · ${xp} XP</span><span class="mono">tx ${U.f6.cert}…</span><span style="font-size:12px">Непередаваемый: нельзя продать или отправить.</span></div>`;
+}
+
+const CNAMES = { c1: 'Первый кошелёк', c2: 'Безопасность', c3: 'Биржи', c4: 'Мультичейн и приватность', c5: 'DeFi', c6: 'Смарт-контракты и финал' };
+const cubeDone = k => k === 'c1' ? S.done[6] : k === 'c2' ? T.done[6] : (k === CUR ? U : CUBES[k].S).done[6];
+function header() {
+  $('h1').textContent = 'Кубик ' + CUR.slice(1) + ' · ' + CNAMES[CUR];
+  const xp = S.xp + T.xp + ['c3', 'c4', 'c5', 'c6'].reduce((a, k) => a + (k === CUR ? U : CUBES[k].S).xp, 0);
+  $('xp').textContent = xp + ' XP';
+  $('switch').innerHTML = '<span class="muted" style="padding:6px 4px 6px 8px;font-size:13px">Кубик</span>' + Object.keys(CNAMES).map(k => `<button class="tabbtn ${CUR === k ? 'on' : ''}" data-act="cube" data-arg="${k}" aria-pressed="${CUR === k}" title="${CNAMES[k]}" aria-label="Кубик ${k.slice(1)}: ${CNAMES[k]}">${k.slice(1)}${cubeDone(k) ? ' ✓' : ''}</button>`).join('');
+}
+
+function render() {
+  if (CUBES[CUR]) { U = CUBES[CUR].S; renderN(CUBES[CUR]); CUBES[CUR].S = U; }
+  else if (CUR === 'c2') render2(); else { CUR = 'c1'; render1(); }
+  header();
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
+  const act = b.dataset.act;
+  if (act === 'cube') { CUR = b.dataset.arg; try { localStorage.setItem('cryptocube-cur', CUR); } catch (err) {} render(); window.scrollTo({ top: 0 }); return; }
+  if (CUBES[CUR]) { const c = CUBES[CUR]; U = c.S; const fn = GA[act] || c.A[act]; if (fn) { fn(b.dataset.arg, b); c.S = U; render(); } return; }
+  if (CUR === 'c2') { if (A2[act]) { A2[act](b.dataset.arg, b); render(); } return; }
+  if (act === 'copy') { try { navigator.clipboard.writeText(S.w.addr).then(() => { b.textContent = 'Скопировано'; }, () => { b.textContent = 'Выделите адрес вручную'; }); } catch (err) { b.textContent = 'Выделите адрес вручную'; } return; }
+  if (act === 'view') { S.view = b.dataset.arg || null; render(); return; }
+  if (A[act]) { A[act](b.dataset.arg, b); render(); }
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (CUBES[CUR] && t.dataset.k) { U = CUBES[CUR].S; U.inp[t.dataset.k] = t.value; try { localStorage.setItem('cryptocube-' + CUBES[CUR].n, JSON.stringify(U)); } catch (err) {} return; }
+  if (t.dataset.inp === 'rw') S.f6.words[+t.dataset.i] = t.value;
+  if (t.dataset.inp === 'amt') S.f5.amount = t.value;
+  save();
+});
+
+// resume any pending transactions after reload
+S.txs.forEach(t => { if (t.status === 'pending') {
+  t.status = 'ok'; S.block += 1; t.block = S.block;
+  const b = t.to === S.w.addr ? 'me' : t.to === MASHA ? 'masha' : t.to === PETR ? 'petr' : null;
+  if (b) S.bal[b][t.asset] = (S.bal[b][t.asset] || 0) + t.amount;
+  onConfirmed(t);
+} });
+if (S.face === 4 && !S.chat.length) enterFace();
+render();
+})();
+</script>
