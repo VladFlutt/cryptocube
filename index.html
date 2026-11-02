@@ -53,7 +53,7 @@ header.top { display: flex; flex-wrap: wrap; align-items: center; justify-conten
 .brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .brand h1 { font: 700 22px/1.2 var(--font-display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
 .brand .sub { color: var(--muted); }
-.meta { display: flex; gap: 10px; align-items: center; }
+.meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 13px; font-variant-numeric: tabular-nums; }
 .pill.sandbox { border-color: var(--warn); color: var(--warn); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; font-size: 11px; }
 .switch { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); flex-wrap: wrap; }
@@ -200,6 +200,34 @@ dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; min-width: 0; }
 .stats b { display: block; font: 700 20px var(--font-display); font-variant-numeric: tabular-nums; }
 .feed { display: grid; gap: 6px; font-size: 13px; }
 .feed div { display: grid; grid-template-columns: auto 1fr; gap: 8px; color: var(--muted); }
+
+/* справочник, подсказки, ИИ-помощник */
+[hidden] { display: none !important; }
+.term { border-bottom: 1.5px dotted var(--accent); cursor: help; }
+.term:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 2px; }
+#tip { position: fixed; z-index: 60; background: var(--fg); color: var(--bg); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; font-size: 13px; line-height: 1.45; box-shadow: 0 8px 24px rgba(0,0,0,0.2); pointer-events: none; }
+#tip .tipmeta { opacity: 0.7; font-size: 11px; }
+#helppanel { position: fixed; inset: 0; z-index: 40; background: rgba(10,12,12,0.45); display: flex; justify-content: flex-end; }
+.hp-sheet { background: var(--surface); width: min(560px, 100%); height: 100%; display: flex; flex-direction: column; box-shadow: -8px 0 30px rgba(0,0,0,0.2); }
+.hp-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 16px; border-bottom: 1px solid var(--line); }
+.hp-body { overflow-y: auto; padding: 16px; display: grid; gap: 18px; align-content: start; }
+.gsec { display: grid; gap: 8px; }
+dl.gloss { margin: 0; display: grid; gap: 2px 0; }
+dl.gloss dt { font-weight: 600; margin-top: 8px; }
+dl.gloss dd { margin: 0; color: var(--muted); }
+ul.lib { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+ul.lib li { display: grid; gap: 1px; }
+ul.lib a { color: var(--accent); font-weight: 600; }
+#aibtn { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: 16px; z-index: 30; border: 0; border-radius: 999px; padding: 12px 18px; background: var(--accent); color: var(--on-accent); font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+#aibox { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: 16px; z-index: 35; width: min(380px, calc(100vw - 32px)); height: min(560px, calc(100dvh - 32px)); background: var(--screen); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 12px 40px rgba(0,0,0,0.25); display: flex; flex-direction: column; overflow: hidden; }
+.ai-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.ai-head .muted { font-size: 12px; }
+.ai-log { flex: 1; overflow-y: auto; padding: 12px; display: grid; gap: 8px; align-content: start; min-height: 0; }
+.ai-form { display: flex; gap: 6px; padding: 10px 12px 4px; border-top: 1px solid var(--line); }
+.ai-form input { flex: 1; min-width: 0; font: inherit; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--surface); color: var(--fg); }
+.ai-form .btn { width: auto; }
+.ai-note { margin: 0; padding: 0 12px 10px; font-size: 11px; color: var(--muted); }
+body { padding-bottom: 80px; }
 </style>
 
 <div class="wrap">
@@ -212,6 +240,8 @@ dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; min-width: 0; }
     <div class="meta">
       <span class="pill sandbox" title="Все деньги, адреса и seed-фразы здесь ненастоящие">Учебная среда</span>
       <span class="pill" id="xp">0 XP</span>
+      <button class="ghost" data-ui="help" data-arg="gloss">Словарь</button>
+      <button class="ghost" data-ui="help" data-arg="lib">Библиотека</button>
       <button class="ghost" data-act="reset">Начать заново</button>
     </div>
   </header>
@@ -226,6 +256,11 @@ dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; min-width: 0; }
     <section class="brief" id="brief" aria-live="polite"></section>
   </main>
 </div>
+
+<div id="tip" role="tooltip" hidden></div>
+<div id="helppanel" hidden></div>
+<button id="aibtn" data-ui="ai" aria-expanded="false" aria-controls="aibox">Спросить ИИ</button>
+<section id="aibox" aria-label="ИИ-помощник" hidden></section>
 
 <script>
 (() => {
@@ -1563,10 +1598,247 @@ function header() {
   $('switch').innerHTML = '<span class="muted" style="padding:6px 4px 6px 8px;font-size:13px">Кубик</span>' + Object.keys(CNAMES).map(k => `<button class="tabbtn ${CUR === k ? 'on' : ''}" data-act="cube" data-arg="${k}" aria-pressed="${CUR === k}" title="${CNAMES[k]}" aria-label="Кубик ${k.slice(1)}: ${CNAMES[k]}">${k.slice(1)}${cubeDone(k) ? ' ✓' : ''}</button>`).join('');
 }
 
+/* ================= СПРАВОЧНИК: словарь, библиотека, подсказки, ИИ-помощник ================= */
+// [термин, регулярка форм слова, объяснение, кубик]
+const GLOSSARY = [
+  ['Кошелёк', 'кошел[её]к[а-яё]*', 'Приложение или устройство, которое хранит ключи и подписывает транзакции. Сами монеты лежат в блокчейне, а не в кошельке.', 1],
+  ['Seed-фраза', 'seed-фраз[а-яё]*', '12–24 слова, из которых получаются все ключи кошелька. Кто знает фразу, тот владеет деньгами. Хранится только офлайн.', 1],
+  ['Приватный ключ', 'приватн[а-яё]+ ключ[а-яё]*', 'Секретное число, которым подписываются транзакции. Получается из seed-фразы. Никому не передаётся.', 1],
+  ['Адрес', 'адрес(?:а|у|ом|е|ов|ам|ами|ах)?', 'Публичный идентификатор для получения средств, как номер счёта. Его можно давать всем.', 1],
+  ['Транзакция', 'транзакци[а-яё]+', 'Подписанная команда сети: перевести монеты или вызвать функцию контракта. После включения в блок её нельзя отменить.', 1],
+  ['Блок', 'блок(?:а|у|ом|е|и|ов|ам)?', 'Пачка транзакций, которую сеть записывает в цепочку. Каждый блок ссылается на предыдущий, поэтому прошлое нельзя переписать незаметно.', 1],
+  ['Блокчейн', 'блокчейн[а-яё]*', 'Общая публичная база данных из цепочки блоков, которую одновременно хранят тысячи компьютеров.', 1],
+  ['Газ', 'газ(?:а|у|ом|е)?', 'Плата сети за обработку транзакции. Платится родной монетой сети, например ETH в Ethereum.', 1],
+  ['Комиссия', 'комисси[а-яё]+', 'Сколько вы платите за операцию: сети (газ), бирже или протоколу.', 1],
+  ['Мемпул', 'мемпул[а-яё]*', 'Очередь транзакций, которые ещё не попали в блок. Её видят все, включая ботов.', 1],
+  ['Подтверждение', 'подтверждени[а-яё]+', 'Новый блок поверх блока с вашей транзакцией. Чем больше подтверждений, тем надёжнее перевод.', 1],
+  ['Обозреватель блоков', 'обозревател[а-яё]+', 'Сайт для просмотра транзакций и адресов, например Etherscan. Показывает, что реально произошло в сети.', 1],
+  ['Токен', 'токен(?:а|у|ом|е|ы|ов|ам|ами|ах)?', 'Актив, выпущенный смарт-контрактом поверх сети. Подлинность определяет адрес контракта, а не название.', 1],
+  ['Фишинг', 'фишинг[а-яё]*', 'Поддельный сайт или письмо, которые выманивают seed-фразу, пароль или подпись.', 2],
+  ['Подмена адреса', 'подмен[а-яё]+ адрес[а-яё]*', 'Мошенник создаёт адрес, похожий на нужный по краям, и подбрасывает его в историю переводов (address poisoning).', 2],
+  ['Дрейнер', 'дрейнер[а-яё]*', 'Вредоносный контракт или сайт, который после вашей подписи выводит все токены.', 2],
+  ['Permit', 'permit', 'Подпись-разрешение тратить ваши токены без отдельной транзакции. Опасна тем, что выглядит как обычная подпись.', 2],
+  ['Аппаратный кошелёк', 'аппаратн[а-яё]+ кошел[её]к[а-яё]*', 'Отдельное устройство, которое хранит ключи офлайн и показывает транзакцию на своём экране.', 2],
+  ['KYC', 'kyc', 'Know Your Customer: проверка личности клиента, которую по закону проводят биржи.', 3],
+  ['2FA', '2fa', 'Двухфакторная защита: кроме пароля нужен код из приложения или ключа.', 3],
+  ['Биржа (CEX)', 'бирж[а-яё]+', 'Централизованная площадка: хранит ваши средства у себя и сводит покупателей с продавцами.', 3],
+  ['DEX', 'dex', 'Децентрализованная биржа: обмен идёт через смарт-контракт прямо из вашего кошелька.', 3],
+  ['Стакан', 'стакан[а-яё]*', 'Список заявок на покупку и продажу по разным ценам.', 3],
+  ['Лимитный ордер', 'лимитн[а-яё]+ ордер[а-яё]*', 'Заявка, которая исполнится только по вашей цене или лучше.', 3],
+  ['Стоп-лосс', 'стоп-лосс[а-яё]*', 'Заявка, которая автоматически продаёт актив, если цена падает до заданного уровня.', 3],
+  ['Memo', 'memo', 'Метка платежа (тег). Биржи по ней узнают, чей депозит пришёл на общий адрес.', 3],
+  ['Approve', 'approve|разрешени[а-яё]+', 'Разрешение контракту тратить ваш токен. Бывает на сумму или без ограничений.', 3],
+  ['Проскальзывание', 'проскальзывани[а-яё]+', 'Разница между ожидаемой и фактической ценой обмена. Допуск задаёт, на сколько хуже вы готовы получить.', 3],
+  ['MEV', 'mev', 'Прибыль, которую извлекают из порядка транзакций в блоке. Пример — сэндвич-атака.', 3],
+  ['Сэндвич-атака', 'сэндвич[а-яё-]*', 'Бот покупает перед вашим обменом и продаёт сразу после, забирая разницу в пределах вашего допуска.', 3],
+  ['L2', 'l2', 'Вторая сеть поверх основной: собирает транзакции в пакеты и публикует их в L1. Дешевле и быстрее.', 4],
+  ['Мост', 'мост(?:а|у|ом|е|ы|ов|ам)?', 'Протокол, который блокирует токены в одной сети и выпускает их представление в другой.', 4],
+  ['Обёрнутый токен', 'обёрнут[а-яё]+|обертк[а-яё]+|обёртк[а-яё]+', 'Расписка на актив из другой сети. Стоит столько, сколько надёжен её эмитент или мост.', 4],
+  ['Monero', 'monero', 'Сеть с приватностью по умолчанию: скрыты отправитель, получатель и сумма.', 4],
+  ['Субадрес', 'субадрес[а-яё]*', 'Дополнительный адрес Monero того же кошелька. Платежи на разные субадреса нельзя связать.', 4],
+  ['Zcash', 'zcash', 'Сеть с выбором: прозрачные адреса как у Bitcoin или экранированный пул со скрытыми данными.', 4],
+  ['Ключ просмотра', 'ключ[а-яё]* просмотра', 'Ключ, который показывает историю кошелька, но не позволяет тратить. Для бухгалтера и аудитора.', 4],
+  ['Стейкинг', 'стейкинг[а-яё]*', 'Залог монет за валидатора в сети с доказательством доли. Приносит награду, но есть риск штрафа.', 5],
+  ['Валидатор', 'валидатор[а-яё]*', 'Участник сети, который подтверждает блоки под залог.', 5],
+  ['Слэшинг', 'слэшинг[а-яё]*', 'Штраф сети за нарушения валидатора: сжигается часть залога, включая делегированный.', 5],
+  ['Health factor', 'health factor|hf', 'Запас прочности займа: залог × порог ликвидации ÷ долг. Ниже 1 — ликвидация.', 5],
+  ['Ликвидация', 'ликвидаци[а-яё]+', 'Принудительное погашение долга за счёт залога, когда его стоимость падает.', 5],
+  ['Пул ликвидности', 'пул[а-яё]*', 'Контракт с запасом двух токенов, через который проходят обмены. Поставщики получают комиссии.', 5],
+  ['Непостоянные потери', 'непостоянн[а-яё]+ потер[а-яё]+', 'Недополученная прибыль поставщика ликвидности по сравнению с простым хранением, когда цены расходятся.', 5],
+  ['Фарминг', 'фарм(?:инг)?[а-яё]*', 'Размещение токенов в протоколе ради наград. Сверхвысокая доходность почти всегда означает сверхвысокий риск.', 5],
+  ['Стейблкоин', 'стейблкоин[а-яё]*', 'Токен, привязанный к валюте, обычно к доллару. Надёжность зависит от обеспечения.', 5],
+  ['Депег', 'депег[а-яё]*|привязк[а-яё]+', 'Потеря стейблкоином привязки к своей валюте.', 5],
+  ['Смарт-контракт', 'смарт-контракт[а-яё]*|контракт(?:а|у|ом|е|ы|ов)?', 'Программа в блокчейне. Её код публичен, и после деплоя она выполняется без посредников.', 6],
+  ['Calldata', 'calldata', 'Данные вызова контракта: селектор функции (первые 4 байта) и аргументы.', 6],
+  ['setApprovalForAll', 'setapprovalforall', 'Разрешение оператору распоряжаться всеми NFT коллекции.', 6],
+  ['Мультиподпись', 'мультиподпис[а-яё]+', 'Кошелёк, которому для операции нужно несколько подписей из заданного числа владельцев, например 2 из 3.', 6],
+  ['ERC-20', 'erc-20', 'Стандарт взаимозаменяемых токенов в Ethereum.', 6],
+  ['onlyOwner', 'onlyowner', 'Модификатор: функцию может вызвать только владелец контракта.', 6],
+  ['Тестнет', 'тестов[а-яё]+ сет[а-яё]+|тестнет[а-яё]*|sepolia', 'Тестовая сеть, монеты которой ничего не стоят. Sepolia — тестнет Ethereum.', 6],
+  ['Soulbound-токен', 'soulbound[а-яё-]*', 'Непередаваемый токен: его нельзя продать или отправить, он привязан к адресу.', 6],
+];
+const LIBRARY = [
+  ['Основы', [
+    ['Ethereum: обучение', 'https://ethereum.org/ru/learn/', 'Официальный учебный раздел на русском'],
+    ['Bitcoin: исходная статья Сатоши Накамото', 'https://bitcoin.org/bitcoin.pdf', '9 страниц, с которых всё началось'],
+    ['Mastering Bitcoin', 'https://github.com/bitcoinbook/bitcoinbook', 'Книга А. Антонопулоса, открытая версия, англ.'],
+    ['Mastering Ethereum', 'https://github.com/ethereumbook/ethereumbook', 'Книга об Ethereum и смарт-контрактах, англ.'],
+    ['Финансовая культура (Банк России)', 'https://fincult.info', 'Финансовая грамотность и признаки мошенничества'],
+  ]],
+  ['Кошельки и безопасность', [
+    ['Как выбрать кошелёк', 'https://ethereum.org/ru/wallets/', 'Обзор типов кошельков от ethereum.org'],
+    ['Revoke.cash', 'https://revoke.cash', 'Проверка и отзыв выданных разрешений'],
+    ['Chainabuse', 'https://www.chainabuse.com', 'База жалоб на мошеннические адреса'],
+    ['ScamSniffer', 'https://www.scamsniffer.io', 'Исследования фишинга и дрейнеров'],
+  ]],
+  ['Сети и обозреватели', [
+    ['Etherscan', 'https://etherscan.io', 'Обозреватель блоков Ethereum'],
+    ['Sepolia Etherscan', 'https://sepolia.etherscan.io', 'Обозреватель тестовой сети Sepolia'],
+    ['Chainlist', 'https://chainlist.org', 'Параметры EVM-сетей'],
+    ['L2BEAT', 'https://l2beat.com', 'Риски и устройство сетей второго уровня'],
+  ]],
+  ['Приватность', [
+    ['Monero', 'https://www.getmonero.org', 'Официальный сайт и документация'],
+    ['Zcash: обучение', 'https://z.cash/learn/', 'Экранированные адреса и ключи просмотра'],
+  ]],
+  ['DeFi', [
+    ['DefiLlama', 'https://defillama.com', 'Статистика протоколов и сетей'],
+    ['История взломов DefiLlama', 'https://defillama.com/hacks', 'Крупные взломы мостов и протоколов'],
+    ['Rekt', 'https://rekt.news', 'Разборы взломов и рагпулов, англ.'],
+    ['Uniswap: документация', 'https://docs.uniswap.org', 'Как устроены пулы и обмены'],
+    ['Стейкинг Ethereum', 'https://ethereum.org/ru/staking/', 'Виды стейкинга и их риски'],
+  ]],
+  ['Смарт-контракты', [
+    ['Документация Solidity', 'https://docs.soliditylang.org/ru/latest/', 'Язык смарт-контрактов, на русском'],
+    ['OpenZeppelin: ERC-20', 'https://docs.openzeppelin.com/contracts/5.x/erc20', 'Проверенная реализация токена'],
+    ['CryptoZombies', 'https://cryptozombies.io/ru/', 'Интерактивный курс Solidity'],
+    ['Safe', 'https://safe.global', 'Мультиподпись для команд и казны'],
+    ['Кран Sepolia (Google Cloud)', 'https://cloud.google.com/application/web3/faucet/ethereum/sepolia', 'Бесплатный тестовый ETH'],
+  ]],
+  ['Право', [
+    ['259-ФЗ о цифровых активах', 'https://www.consultant.ru/document/cons_doc_LAW_358753/', 'Закон о ЦФА и цифровой валюте в РФ'],
+  ]],
+];
+const GL = GLOSSARY.map(([t, re, d, c]) => ({ t, d, c, re: new RegExp('(?<![\\p{L}\\p{N}-])(' + re + ')(?![\\p{L}\\p{N}])', 'iu') }));
+
+/* --- подсказки: оборачиваем первое упоминание каждого термина --- */
+function annotate(root) {
+  if (!root) return;
+  const used = new Set(); let budget = 14;
+  const walk = node => {
+    for (const ch of Array.from(node.childNodes)) {
+      if (budget <= 0) return;
+      if (ch.nodeType === 1) { if (!/^(BUTTON|INPUT|TEXTAREA|A|H2|H3|SCRIPT)$/.test(ch.tagName) && !ch.classList.contains('term') && !ch.classList.contains('mono')) walk(ch); continue; }
+      if (ch.nodeType !== 3 || ch.nodeValue.trim().length < 3) continue;
+      let best = null;
+      for (const g of GL) { if (used.has(g.t)) continue; const m = g.re.exec(ch.nodeValue); if (m && (!best || m.index < best.m.index)) best = { g, m }; }
+      if (!best) continue;
+      const { g, m } = best; used.add(g.t); budget -= 1;
+      const after = ch.splitText(m.index); after.splitText(m[1].length);
+      const span = document.createElement('span');
+      span.className = 'term'; span.tabIndex = 0; span.dataset.term = g.t; span.textContent = after.nodeValue;
+      span.setAttribute('aria-describedby', 'tip');
+      after.replaceWith(span);
+      walk(node); return;
+    }
+  };
+  walk(root);
+}
+const tipEl = () => document.getElementById('tip');
+function showTip(el) {
+  const g = GL.find(x => x.t === el.dataset.term); if (!g) return;
+  const t = tipEl(); t.innerHTML = `<b>${esc(g.t)}</b><span>${esc(g.d)}</span><span class="tipmeta">Кубик ${g.c} · подробнее в словаре</span>`;
+  t.hidden = false;
+  const r = el.getBoundingClientRect(); const w = Math.min(300, window.innerWidth - 24);
+  t.style.width = w + 'px';
+  const left = Math.max(12, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 12));
+  t.style.left = left + 'px';
+  const h = t.offsetHeight; const above = r.top - h - 8;
+  t.style.top = (above > 8 ? above : r.bottom + 8) + 'px';
+}
+const hideTip = () => { const t = tipEl(); if (t) t.hidden = true; };
+document.addEventListener('mouseover', e => { const el = e.target.closest('.term'); if (el) showTip(el); });
+document.addEventListener('mouseout', e => { if (e.target.closest('.term')) hideTip(); });
+document.addEventListener('focusin', e => { const el = e.target.closest('.term'); if (el) showTip(el); else hideTip(); });
+document.addEventListener('scroll', hideTip, true);
+
+/* --- справочник: словарь и библиотека --- */
+const H = { panel: null, tab: 'gloss', q: '', chat: false, msgs: [], busy: false, mode: null };
+function glossHTML() {
+  const q = H.q.trim().toLowerCase();
+  const list = GL.filter(g => !q || g.t.toLowerCase().includes(q) || g.d.toLowerCase().includes(q));
+  const groups = [1, 2, 3, 4, 5, 6].map(c => [c, list.filter(g => g.c === c)]).filter(([, l]) => l.length);
+  return `<div class="field"><label for="gq">Поиск по словарю</label><input id="gq" data-ui-input="q" value="${esc(H.q)}" placeholder="например, газ или мост" autocomplete="off"></div>
+    ${groups.length ? groups.map(([c, l]) => `<section class="gsec"><div class="eyebrow">Кубик ${c} · ${CNAMES['c' + c]}</div><dl class="gloss">${l.map(g => `<dt>${esc(g.t)}</dt><dd>${esc(g.d)}</dd>`).join('')}</dl></section>`).join('') : '<p class="muted">Ничего не нашлось. Спросите ИИ-помощника.</p>'}`;
+}
+function libHTML() {
+  return `<p class="muted">Внешние сайты. Открывайте их по ссылкам отсюда или из закладок и никогда не вводите на них seed-фразу.</p>
+    ${LIBRARY.map(([g, items]) => `<section class="gsec"><div class="eyebrow">${g}</div><ul class="lib">${items.map(([t, u, d]) => `<li><a href="${u}" target="_blank" rel="noopener noreferrer">${esc(t)}</a><span class="muted">${esc(d)}</span><span class="mono muted">${esc(u.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</span></li>`).join('')}</ul></section>`).join('')}`;
+}
+function renderHelp() {
+  const p = $('helppanel');
+  if (!H.panel) { p.hidden = true; p.innerHTML = ''; return; }
+  p.hidden = false;
+  p.innerHTML = `<div class="hp-sheet" role="dialog" aria-modal="true" aria-label="Справочник">
+    <div class="hp-head"><div class="switch">${[['gloss', 'Словарь'], ['lib', 'Библиотека']].map(([k, l]) => `<button class="tabbtn ${H.tab === k ? 'on' : ''}" data-ui="tab" data-arg="${k}">${l}</button>`).join('')}</div>
+    <button class="ghost" data-ui="close">Закрыть</button></div>
+    <div class="hp-body">${H.tab === 'gloss' ? glossHTML() : libHTML()}</div></div>`;
+}
+
+/* --- ИИ-помощник --- */
+function ctxNow() {
+  const cube = CUR; let face, f;
+  if (cube === 'c1') { face = S.face; f = FACES[face - 1]; } else if (cube === 'c2') { face = T.face; f = FACES2[face - 1]; } else { face = CUBES[cube].S.face; f = CUBES[cube].faces[face - 1]; }
+  return { cube: 'Кубик ' + cube.slice(1) + ' «' + CNAMES[cube] + '»', face: face + ' «' + f.title + '»', goal: f.goal, explain: f.explain };
+}
+function offlineAnswer(q) {
+  const hits = GL.filter(g => g.re.test(q) || q.toLowerCase().includes(g.t.toLowerCase())).slice(0, 3);
+  const c = ctxNow();
+  if (/грань|задани|что делать|подскаж|помоги|не понимаю/i.test(q) || !hits.length) {
+    return (hits.length ? hits.map(g => `${g.t}: ${g.d}`).join('\n\n') + '\n\n' : '') + `Сейчас вы на грани ${c.face}. Цель: ${c.goal}\n\nПодсказка: ${c.explain}`;
+  }
+  return hits.map(g => `${g.t}: ${g.d}`).join('\n\n');
+}
+async function askAI(q) {
+  H.msgs.push({ role: 'user', content: q }); H.busy = true; renderChat();
+  let answer = null;
+  if (location.protocol === 'file:') H.mode = 'offline';
+  if (H.mode !== 'offline') {
+    try {
+      const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 25000);
+      const r = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctl.signal,
+        body: JSON.stringify({ messages: H.msgs.slice(-8), context: ctxNow() }) });
+      clearTimeout(tm);
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.answer) { answer = j.answer; H.mode = 'ai'; }
+      else if (r.status === 429) answer = 'Слишком много вопросов подряд. Подождите пару минут.';
+      else if (r.status === 404 || r.status === 501 || r.status === 405) H.mode = 'offline';
+    } catch (e) { /* сеть недоступна: офлайн-ответ */ }
+  }
+  if (!answer) answer = offlineAnswer(q) + (H.mode === 'offline' ? '' : '\n\n(ИИ сейчас недоступен, ответ из словаря.)');
+  H.msgs.push({ role: 'assistant', content: answer }); H.busy = false; renderChat();
+}
+function renderChat() {
+  const box = $('aibox'); const btn = $('aibtn');
+  btn.setAttribute('aria-expanded', H.chat); btn.hidden = H.chat;
+  if (!H.chat) { box.hidden = true; return; }
+  box.hidden = false;
+  const c = ctxNow();
+  box.innerHTML = `<div class="ai-head"><div><b>ИИ-помощник</b><div class="muted">${H.mode === 'offline' ? 'Офлайн-режим: ответы из словаря' : 'Знает, на какой вы грани'}</div></div><button class="ghost" data-ui="aiclose" aria-label="Закрыть помощника">×</button></div>
+    <div class="ai-log" id="ailog" aria-live="polite">
+      ${H.msgs.length ? '' : `<div class="msg"><div class="who">Помощник</div><div>Спросите про термин или задание. Вы сейчас на грани ${esc(c.face)}.</div></div>
+      <div class="chips">${['Объясни, что делать на этой грани', 'Что такое газ?', 'Чем мост отличается от биржи?'].map(s => `<button class="chip" data-ui="suggest">${s}</button>`).join('')}</div>`}
+      ${H.msgs.map(m => `<div class="msg ${m.role === 'user' ? 'me' : ''}">${m.role === 'user' ? '' : '<div class="who">Помощник</div>'}<div style="white-space:pre-wrap">${esc(m.content)}</div></div>`).join('')}
+      ${H.busy ? '<div class="msg"><div class="who">Помощник</div><div class="muted">Думаю…</div></div>' : ''}</div>
+    <form class="ai-form" id="aiform"><input id="aiq" maxlength="600" placeholder="Ваш вопрос" autocomplete="off" aria-label="Вопрос помощнику" ${H.busy ? 'disabled' : ''}><button class="btn" type="submit" ${H.busy ? 'disabled' : ''}>Спросить</button></form>
+    <p class="ai-note">Не пишите сюда seed-фразы, ключи и личные данные. ИИ может ошибаться и не даёт инвестиционных советов.</p>`;
+  const log = $('ailog'); log.scrollTop = log.scrollHeight;
+  if (!H.busy) $('aiq').focus({ preventScroll: true });
+}
+document.addEventListener('submit', e => {
+  if (e.target.id !== 'aiform') return; e.preventDefault();
+  const q = $('aiq').value.trim(); if (q && !H.busy) askAI(q.slice(0, 600));
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-ui]');
+  if (!b) { if (H.panel && e.target.id === 'helppanel') { H.panel = null; renderHelp(); } const t = e.target.closest('.term'); if (t) showTip(t); return; }
+  const u = b.dataset.ui;
+  if (u === 'help') { H.panel = true; H.tab = b.dataset.arg || 'gloss'; renderHelp(); }
+  if (u === 'tab') { H.tab = b.dataset.arg; renderHelp(); }
+  if (u === 'close') { H.panel = null; renderHelp(); }
+  if (u === 'ai') { H.chat = true; renderChat(); }
+  if (u === 'aiclose') { H.chat = false; renderChat(); $('aibtn').focus(); }
+  if (u === 'suggest') askAI(b.textContent);
+});
+document.addEventListener('input', e => { if (e.target.dataset.uiInput === 'q') { H.q = e.target.value; const pos = e.target.selectionStart; renderHelp(); const i = $('gq'); i.focus(); i.setSelectionRange(pos, pos); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { hideTip(); if (H.panel) { H.panel = null; renderHelp(); } else if (H.chat) { H.chat = false; renderChat(); } } });
+
 function render() {
+  hideTip();
   if (CUBES[CUR]) { U = CUBES[CUR].S; renderN(CUBES[CUR]); CUBES[CUR].S = U; }
   else if (CUR === 'c2') render2(); else { CUR = 'c1'; render1(); }
   header();
+  annotate($('brief')); annotate(document.querySelector('.trap .sheet p'));
 }
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
