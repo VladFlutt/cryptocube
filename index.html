@@ -1,3 +1,6 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Cryptocube: шесть кубиков</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -235,6 +238,8 @@ body { padding-bottom: 80px; }
 .switch .tabbtn { flex: 0 0 auto; }
 #langbtn { min-width: 44px; }
 @media (max-width: 720px) {
+  body { padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+  #aibtn { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
   body { font-size: 15px; }
   .wrap { gap: 14px; }
   header.top { flex-direction: column; align-items: stretch; gap: 10px; }
@@ -1793,8 +1798,8 @@ function showTip(el) {
   t.style.top = (above > 8 ? above : r.bottom + 8) + 'px';
 }
 const hideTip = () => { const t = tipEl(); if (t) t.hidden = true; };
-document.addEventListener('mouseover', e => { const el = e.target.closest('.term'); if (el) showTip(el); });
-document.addEventListener('mouseout', e => { if (e.target.closest('.term')) hideTip(); });
+document.addEventListener('pointerover', e => { if (e.pointerType !== 'mouse') return; const el = e.target.closest('.term'); if (el) showTip(el); });
+document.addEventListener('pointerout', e => { if (e.pointerType !== 'mouse') return; if (e.target.closest('.term')) hideTip(); });
 document.addEventListener('focusin', e => { const el = e.target.closest('.term'); if (el) showTip(el); else hideTip(); });
 document.addEventListener('scroll', hideTip, true);
 
@@ -1877,7 +1882,7 @@ document.addEventListener('submit', e => {
 });
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-ui]');
-  if (!b) { if (H.panel && e.target.id === 'helppanel') { H.panel = null; renderHelp(); } const t = e.target.closest('.term'); if (t) showTip(t); return; }
+  if (!b) { if (H.panel && e.target.id === 'helppanel') { H.panel = null; renderHelp(); } const t = e.target.closest('.term'); if (t) showTip(t); else hideTip(); return; }
   const u = b.dataset.ui;
   if (u === 'help') { H.panel = true; H.tab = b.dataset.arg || 'gloss'; renderHelp(); }
   if (u === 'tab') { H.tab = b.dataset.arg; renderHelp(); }
