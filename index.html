@@ -246,7 +246,7 @@ body { padding-bottom: 80px; }
   .brand h1 { font-size: 19px; }
   .brand .sub { display: none; }
   .meta { flex-wrap: wrap; gap: 6px; }
-  .meta .ghost { min-height: 40px; padding: 8px 12px; }
+  .meta .ghost { min-height: 44px; padding: 8px 12px; }
   .scene { height: 170px; zoom: 0.8; }
   .facelist { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(124px, 1fr); overflow-x: auto; gap: 6px; padding-bottom: 4px; scrollbar-width: thin; }
   .facelist button { grid-template-columns: 26px 1fr; padding: 8px; }
@@ -266,6 +266,22 @@ body { padding-bottom: 80px; }
 body { overflow-x: hidden; }
 
 /* Телефон: нижние вкладки, плашка шага, компактная шапка */
+
+/* Телефон: шторки для подсказок и ловушек, чат на весь экран, размеры под палец */
+@media (max-width: 720px) {
+  #tip { left: 0 !important; right: 0; top: auto !important; bottom: calc(58px + env(safe-area-inset-bottom, 0px)); width: auto !important; border-radius: 16px 16px 0 0; padding: 16px 18px 18px; font-size: 15px; gap: 6px; pointer-events: auto; box-shadow: 0 -8px 24px rgba(0,0,0,0.25); max-height: 50dvh; overflow-y: auto; }
+  #tip b { font-size: 16px; }
+  #tip .tipmeta { font-size: 12.5px; }
+  .trap { position: fixed; z-index: 45; padding: 0; align-items: end; }
+  .trap .sheet { border-radius: 20px 20px 0 0; max-height: 88dvh; overflow-y: auto; padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px)); }
+  .trap .tag { font-size: 12px; }
+  #aibox { inset: 0; width: 100%; height: 100dvh; max-height: none; border-radius: 0; border: 0; z-index: 50; }
+  .ai-head .muted, .ai-note { font-size: 12.5px; }
+  input, select, textarea { font-size: 16px; }
+  .ai-form input { min-height: 44px; }
+  .btn, .ghost, .chip, .tabbtn, .ai-form .btn { min-height: 44px; }
+  .switch { align-items: center; }
+}
 #mtabs, #mstep { display: none; }
 @media (max-width: 720px) {
   body { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
@@ -1833,7 +1849,7 @@ const hideTip = () => { const t = tipEl(); if (t) t.hidden = true; };
 document.addEventListener('pointerover', e => { if (e.pointerType !== 'mouse') return; const el = e.target.closest('.term'); if (el) showTip(el); });
 document.addEventListener('pointerout', e => { if (e.pointerType !== 'mouse') return; if (e.target.closest('.term')) hideTip(); });
 document.addEventListener('focusin', e => { const el = e.target.closest('.term'); if (el) showTip(el); else hideTip(); });
-document.addEventListener('scroll', hideTip, true);
+document.addEventListener('scroll', () => { if (!MQ.matches) hideTip(); }, true);
 
 /* --- справочник: словарь и библиотека --- */
 const H = { panel: null, tab: 'gloss', q: '', chat: false, msgs: [], busy: false, mode: null };
@@ -1895,7 +1911,7 @@ function renderChat() {
   const box = $('aibox'); const btn = $('aibtn');
   btn.setAttribute('aria-expanded', H.chat); btn.hidden = H.chat;
   if (!H.chat) { box.hidden = true; return; }
-  box.hidden = false;
+  box.hidden = false; try { fitChat(); } catch (e) {}
   const c = ctxNow();
   box.innerHTML = `<div class="ai-head"><div><b>${TR("ИИ-помощник")}</b><div class="muted">${H.mode === 'offline' ? TR('Офлайн-режим: ответы из словаря') : TR('Знает, на какой вы грани')}</div></div><button class="ghost" data-ui="aiclose" aria-label="${TR("Закрыть помощника")}">×</button></div>
     <div class="ai-log" id="ailog" aria-live="polite">
@@ -1931,6 +1947,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { hideTip();
 let MT = 'task', MSEEN = -1, MKEY = '';
 const MQ = window.matchMedia('(max-width: 720px)');
 function syncMobile() {
+  if (MQ.matches && MT !== 'phone' && document.querySelector('.trap')) MT = 'phone';
   document.body.dataset.mt = MT;
   const brief = $('brief'); const items = [...brief.querySelectorAll('ul.steps li')];
   const done = items.filter(li => li.classList.contains('ok')).length, next = items.find(li => !li.classList.contains('ok'));
@@ -1953,6 +1970,9 @@ function fitScreen() {
   scr.style.height = Math.max(420, window.innerHeight - y - tabsH - 12) + 'px';
 }
 window.addEventListener('resize', fitScreen);
+// Чат на весь экран: высота по видимой области, чтобы поле ввода было над клавиатурой
+function fitChat() { const box = $('aibox'), vv = window.visualViewport; if (!box || !vv) return; if (MQ.matches && !box.hidden) { box.style.height = vv.height + 'px'; box.style.top = vv.offsetTop + 'px'; } else { box.style.height = ''; box.style.top = ''; } }
+if (window.visualViewport) { visualViewport.addEventListener('resize', fitChat); visualViewport.addEventListener('scroll', fitChat); }
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-mt]'); if (!b) return;
   const k = b.dataset.mt;
